@@ -1,0 +1,79 @@
+#!/usr/bin/env python
+
+import click
+
+import time
+
+import numpy as np
+
+from netrex.netrex import Scorer, XNORScorer
+
+
+def _get_representations(num_users,
+                         num_items,
+                         latent_dim):
+
+    user_vectors = np.random.random((num_users, latent_dim)).astype(np.float32)
+    item_vectors = np.random.random((num_items, latent_dim)).astype(np.float32)
+    user_biases = np.random.random(num_users).astype(np.float32)
+    item_biases = np.random.random(num_items).astype(np.float32)
+
+    return (user_vectors, user_biases, item_vectors, item_biases)
+
+
+def _get_scorers(user_vectors, user_biases, item_vectors, item_biases):
+
+    return (Scorer(user_vectors, user_biases, item_vectors, item_biases),
+            XNORScorer(user_vectors, user_biases, item_vectors, item_biases))
+
+
+def _benchmark(scorer, num_iterations=100, profile_filename=None):
+
+    out = np.zeros_like(scorer._item_biases)
+
+    timings = []
+
+    if profile_filename is not None:
+        import yep
+        yep.start(profile_filename)
+
+    for _ in range(num_iterations):
+        start = time.process_time()
+        scorer._predict_bench(0, out)
+        stop = time.process_time()
+        timings.append(stop - start)
+
+    if profile_filename is not None:
+        yep.stop()
+
+    return np.array(timings)
+
+
+@click.command()
+@click.option('--num_items', default=100000, help='Number of items to score.')
+@click.option('--profile', is_flag=True, help='Profile the benchmark runs.')
+def benchmark(num_items, profile=False, latent_dims=(256, 512, 1024, 2048)):
+
+    for latent_dim in latent_dims:
+        representations = _get_representations(1, num_items, latent_dim)
+        scorer, xnor_scorer = _get_scorers(*representations)
+
+        scorer_profile = ('prof_scorer_{}.prof'.format(latent_dim)
+                          if profile else None)
+        scorer_timings = _benchmark(scorer,
+                                    profile_filename=scorer_profile)
+        xnor_scorer_profile = ('prof_xnor_scorer_{}.prof'.format(latent_dim)
+                               if profile else None)
+        xnor_scorer_timings = _benchmark(xnor_scorer,
+                                         profile_filename=xnor_scorer_profile)
+
+        print('Benchmarks at {}: scorer {}, XNOR scorer {}, ratio {}'.format(
+            latent_dim,
+            np.median(scorer_timings),
+            np.median(xnor_scorer_timings),
+            np.median(scorer_timings) / np.median(xnor_scorer_timings)
+        ))
+
+
+if __name__ == '__main__':
+    benchmark()

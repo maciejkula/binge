@@ -1,0 +1,188 @@
+#!/usr/bin/env python
+from datetime import datetime
+import json
+import os
+import sqlite3
+
+import click
+
+import numpy as np
+from scipy.stats import distributions
+from sklearn.model_selection import ParameterSampler
+
+from binge import FactorizationModel
+from binge.data import movielens
+from binge.evaluation import mrr_score
+
+
+class Results:
+
+    def __init__(self, fname):
+
+        self._fname = fname
+        self._conn = sqlite3.connect(fname,
+                                     detect_types=sqlite3.PARSE_DECLTYPES)
+        self._conn.row_factory = sqlite3.Row
+
+        self._setup()
+
+    def _setup(self):
+
+        cur = self._conn.cursor()
+
+        cur.execute('CREATE TABLE IF NOT EXISTS results '
+                    '(loss TEXT, '
+                    'embedding_dim INTEGER, '
+                    'n_iter INTEGER, '
+                    'batch_size INTEGER, '
+                    'l2 REAL, '
+                    'use_cuda INTEGER, '
+                    'xnor INTEGER, '
+                    'mean_mrr REAL, '
+                    'time TIMESTAMP) ')
+
+    def save(self, hyperparameters, mrrs):
+
+        data = hyperparameters.copy()
+        data['mean_mrr'] = mrrs.mean()
+        data['time'] = datetime.now()
+
+        cur = self._conn.cursor()
+
+        cur.execute('INSERT INTO results '
+                    'VALUES (:loss, :embedding_dim, :n_iter, '
+                    ':batch_size, :l2, :use_cuda, :xnor, :mean_mrr, :time)', data)
+        self._conn.commit()
+
+    def __contains__(self, hyperparameters):
+
+        cur = self._conn.cursor()
+
+        cur.execute('SELECT COUNT(*) FROM results '
+                    'WHERE loss=:loss AND embedding_dim=:embedding_dim '
+                    'AND n_iter=:n_iter AND batch_size=:batch_size '
+                    'AND l2=:l2 '
+                    'AND use_cuda=:use_cuda AND xnor=:xnor', hyperparameters)
+
+        return cur.fetchone()[0]
+
+    def load(self, em):
+
+        cur = self._conn.cursor()
+
+        cur.execute('SELECT loss, embedding_dim, n_iter, '
+                    'batch_size, use_cuda, xnor FROM results')
+
+        return cur.fetchall()
+
+    def __del__(self):
+
+        self._conn.close()
+
+
+def random_search(train,
+                  test,
+                  xnor,
+                  embedding_dim,
+                  loss='bpr',
+                  cuda=True,
+                  iterations=10,
+                  minibatch_size=4096,
+                  random_state=None):
+
+    results_db = Results('movielens_100k.log')
+
+    space = {
+        'n_iter': distributions.randint(5, 50),
+        'batch_size': [64, 128, 256, 1024, 2048, 4096]
+    }
+
+    sampler = ParameterSampler(space,
+                               n_iter=iterations,
+                               random_state=random_state)
+
+    with click.progressbar(sampler,
+                           length=iterations,
+                           label='Optimizing hyperparameters for dim={}'.format(embedding_dim)) as bar:
+        for hyperparam_set in bar:
+            model = FactorizationModel(loss=loss,
+                                       xnor=xnor,
+                                       use_cuda=cuda,
+                                       embedding_dim=embedding_dim,
+                                       **hyperparam_set)
+
+            if model.get_params() in results_db:
+                continue
+
+            model.fit(train)
+            mrr = mrr_score(model, test, train)
+
+            results_db.save(model.get_params(), mrr)
+
+
+@click.group()
+@click.pass_context
+@click.option('--random-seed', default=42)
+@click.option('--gpu', is_flag=True, help='Use the GPU')
+@click.option('--xnor/--no-xnor', default=False)
+def cli(ctx, xnor=False, gpu=False, random_seed=42):
+
+    ctx.obj['options'] = (xnor, gpu, random_seed)
+
+
+@cli.command()
+@click.pass_context
+@click.option('--num-iterations', default=10,
+              help='Number of hyperparam search iterations')
+def optimize(ctx, num_iterations=10):
+
+    (xnor, gpu, random_seed) = ctx.obj['options']
+
+    loss = 'bpr'
+
+    train, test, validation = movielens.fetch_movielens(
+        random_seed=random_seed
+    )
+
+    for embedding_dim in (256, 512, 1024, 2048, 4096):
+        print('Optimizing hyperparameters')
+        random_search(train,
+                      test,
+                      xnor,
+                      embedding_dim=embedding_dim,
+                      iterations=num_iterations,
+                      cuda=gpu,
+                      loss=loss,
+                      random_state=random_seed)
+
+
+# @click.command()
+# @click.pass_context
+# def validate(xnor=False, gpu=False, random_seed=42):
+
+
+# @click.group()
+# def cli(num_iterations=10, xnor=False, gpu=False, random_seed=42):
+
+#     validation_logger = Results('movielens_100k_validation.log')
+
+
+
+#         print('Fitting validation model')
+#         model = FactorizationModel(**hyperparams)
+#         model.fit(train, verbose=True)
+
+#         validation_mrrs = mrr_score(model, validation, train + test)
+#         scorer_validation_mrrs = mrr_score(model.get_scorer(),
+#                                            validation,
+#                                            train + test)
+
+#         validation_logger.log(model.get_params(), validation_mrrs)
+
+#         print('Validation MRR: {} ({} from scorer)'.format(validation_mrrs.mean(),
+#                                                            scorer_validation_mrrs.mean()))
+
+
+if __name__ == '__main__':
+
+    cli(obj={})
