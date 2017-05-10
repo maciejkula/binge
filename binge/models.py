@@ -341,16 +341,16 @@ class FactorizationModel(object):
 
         get_param = lambda l: _cpu([x for x in l.parameters()][0]).data.numpy().squeeze()
 
-        if self._xnor is False:
-            return Scorer(get_param(self._net.user_embeddings),
-                          get_param(self._net.user_biases),
-                          get_param(self._net.item_embeddings),
-                          get_param(self._net.item_biases))
-        else:
+        if self._xnor:
             return XNORScorer(get_param(self._net.user_embeddings),
                               get_param(self._net.user_biases),
                               get_param(self._net.item_embeddings),
                               get_param(self._net.item_biases))
+        else:
+            return Scorer(get_param(self._net.user_embeddings),
+                          get_param(self._net.user_biases),
+                          get_param(self._net.item_embeddings),
+                          get_param(self._net.item_biases))
 
 
 class Scorer:

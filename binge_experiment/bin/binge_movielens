@@ -36,8 +36,8 @@ class Results:
                     'n_iter INTEGER, '
                     'batch_size INTEGER, '
                     'l2 REAL, '
-                    'use_cuda INTEGER, '
-                    'xnor INTEGER, '
+                    'use_cuda BOOLEAN, '
+                    'xnor BOOLEAN, '
                     'mean_mrr REAL, '
                     'time TIMESTAMP) ')
 
@@ -66,14 +66,16 @@ class Results:
 
         return cur.fetchone()[0]
 
-    def load(self, em):
+    def load_best(self, embedding_dim):
 
         cur = self._conn.cursor()
 
         cur.execute('SELECT loss, embedding_dim, n_iter, '
-                    'batch_size, use_cuda, xnor FROM results')
+                    'batch_size, use_cuda, xnor FROM results '
+                    'WHERE embedding_dim = :embedding_dim '
+                    'ORDER BY mean_mrr DESC LIMIT 1', {'embedding_dim': embedding_dim})
 
-        return cur.fetchall()
+        return dict(cur.fetchone())
 
     def __del__(self):
 
@@ -145,7 +147,6 @@ def optimize(ctx, num_iterations=10):
     )
 
     for embedding_dim in (256, 512, 1024, 2048, 4096):
-        print('Optimizing hyperparameters')
         random_search(train,
                       test,
                       xnor,
@@ -156,9 +157,32 @@ def optimize(ctx, num_iterations=10):
                       random_state=random_seed)
 
 
-# @click.command()
-# @click.pass_context
-# def validate(xnor=False, gpu=False, random_seed=42):
+@cli.command()
+@click.pass_context
+def validate(ctx):
+
+    results_db = Results('movielens_100k.log')
+
+    (xnor, gpu, random_seed) = ctx.obj['options']
+
+    train, test, validation = movielens.fetch_movielens(
+        random_seed=random_seed
+    )
+
+    for embedding_dim in (256, 512, 1024, 2048, 4096):
+        hyperparams = results_db.load_best(embedding_dim)
+
+        print('Fitting validation model for dim {}'.format(embedding_dim))
+        model = FactorizationModel(**hyperparams)
+        model.fit(train, verbose=True)
+
+        validation_mrrs = mrr_score(model, validation, train + test)
+        scorer_validation_mrrs = mrr_score(model.get_scorer(),
+                                           validation,
+                                           train + test)
+
+        print('Validation MRR: {} ({} from scorer)'.format(validation_mrrs.mean(),
+                                                           scorer_validation_mrrs.mean()))
 
 
 # @click.group()
@@ -168,19 +192,7 @@ def optimize(ctx, num_iterations=10):
 
 
 
-#         print('Fitting validation model')
-#         model = FactorizationModel(**hyperparams)
-#         model.fit(train, verbose=True)
 
-#         validation_mrrs = mrr_score(model, validation, train + test)
-#         scorer_validation_mrrs = mrr_score(model.get_scorer(),
-#                                            validation,
-#                                            train + test)
-
-#         validation_logger.log(model.get_params(), validation_mrrs)
-
-#         print('Validation MRR: {} ({} from scorer)'.format(validation_mrrs.mean(),
-#                                                            scorer_validation_mrrs.mean()))
 
 
 if __name__ == '__main__':
