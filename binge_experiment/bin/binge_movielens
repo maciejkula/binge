@@ -7,8 +7,14 @@ import sqlite3
 import click
 
 import numpy as np
+
+import pandas as pd
+
 from scipy.stats import distributions
+
 from sklearn.model_selection import ParameterSampler
+
+from tabulate import tabulate
 
 from binge import FactorizationModel
 from binge.data import movielens
@@ -51,7 +57,8 @@ class Results:
 
         cur.execute('INSERT INTO results '
                     'VALUES (:loss, :embedding_dim, :n_iter, '
-                    ':batch_size, :l2, :use_cuda, :xnor, :mean_mrr, :time)', data)
+                    ':batch_size, :l2, :use_cuda, :xnor, '
+                    ':mean_mrr, :time)', data)
         self._conn.commit()
 
     def __contains__(self, hyperparameters):
@@ -66,20 +73,33 @@ class Results:
 
         return cur.fetchone()[0]
 
-    def load_best(self, embedding_dim):
+    def load_best(self, embedding_dim, xnor):
 
         cur = self._conn.cursor()
 
         cur.execute('SELECT loss, embedding_dim, n_iter, '
-                    'batch_size, use_cuda, xnor FROM results '
+                    'batch_size, l2, use_cuda, xnor FROM results '
                     'WHERE embedding_dim = :embedding_dim '
-                    'ORDER BY mean_mrr DESC LIMIT 1', {'embedding_dim': embedding_dim})
+                    'AND xnor = :xnor '
+                    'ORDER BY mean_mrr DESC LIMIT 1',
+                    {'embedding_dim': embedding_dim,
+                     'xnor': xnor})
 
         return dict(cur.fetchone())
 
     def __del__(self):
 
         self._conn.close()
+
+    def load(self):
+
+        cur = self._conn.cursor()
+
+        cur.execute('SELECT loss, embedding_dim, n_iter, '
+                    'batch_size, l2, use_cuda, xnor, mean_mrr FROM results '
+                    'ORDER BY embedding_dim, xnor ASC')
+
+        return pd.DataFrame([dict(x) for x in cur.fetchall()])
 
 
 def random_search(train,
@@ -105,7 +125,8 @@ def random_search(train,
 
     with click.progressbar(sampler,
                            length=iterations,
-                           label='Optimizing hyperparameters for dim={}'.format(embedding_dim)) as bar:
+                           label='Optimizing hyperparameters for dim={}'.format(
+                               embedding_dim)) as bar:
         for hyperparam_set in bar:
             model = FactorizationModel(loss=loss,
                                        xnor=xnor,
@@ -127,9 +148,10 @@ def random_search(train,
 @click.option('--random-seed', default=42)
 @click.option('--gpu', is_flag=True, help='Use the GPU')
 @click.option('--xnor/--no-xnor', default=False)
-def cli(ctx, xnor=False, gpu=False, random_seed=42):
+@click.option('--verbose', is_flag=True)
+def cli(ctx, xnor, gpu, random_seed, verbose):
 
-    ctx.obj['options'] = (xnor, gpu, random_seed)
+    ctx.obj['options'] = (xnor, gpu, random_seed, verbose)
 
 
 @cli.command()
@@ -138,7 +160,7 @@ def cli(ctx, xnor=False, gpu=False, random_seed=42):
               help='Number of hyperparam search iterations')
 def optimize(ctx, num_iterations=10):
 
-    (xnor, gpu, random_seed) = ctx.obj['options']
+    (xnor, gpu, random_seed, _) = ctx.obj['options']
 
     loss = 'bpr'
 
@@ -162,39 +184,54 @@ def optimize(ctx, num_iterations=10):
 def validate(ctx):
 
     results_db = Results('movielens_100k.log')
+    validation_db = Results('movielens_100k_validation.log')
 
-    (xnor, gpu, random_seed) = ctx.obj['options']
+    (xnor, gpu, random_seed, verbose) = ctx.obj['options']
 
     train, test, validation = movielens.fetch_movielens(
         random_seed=random_seed
     )
 
-    for embedding_dim in (256, 512, 1024, 2048, 4096):
-        hyperparams = results_db.load_best(embedding_dim)
+    with click.progressbar((256, 512, 1024, 2048, 4096),
+                           label='Running validation') as bar:
+        for embedding_dim in bar:
+            hyperparams = results_db.load_best(embedding_dim, xnor)
 
-        print('Fitting validation model for dim {}'.format(embedding_dim))
-        model = FactorizationModel(**hyperparams)
-        model.fit(train, verbose=True)
+            if hyperparams in validation_db:
+                continue
 
-        validation_mrrs = mrr_score(model, validation, train + test)
-        scorer_validation_mrrs = mrr_score(model.get_scorer(),
-                                           validation,
-                                           train + test)
+            model = FactorizationModel(**hyperparams)
+            model.fit(train, verbose=verbose)
 
-        print('Validation MRR: {} ({} from scorer)'.format(validation_mrrs.mean(),
-                                                           scorer_validation_mrrs.mean()))
+            validation_mrrs = mrr_score(model, validation, train + test)
+            scorer_validation_mrrs = mrr_score(model.get_scorer(),
+                                               validation,
+                                               train + test)
 
+            validation_db.save(model.get_params(), validation_mrrs)
 
-# @click.group()
-# def cli(num_iterations=10, xnor=False, gpu=False, random_seed=42):
-
-#     validation_logger = Results('movielens_100k_validation.log')
-
-
+            if verbose:
+                print('Validation MRR: {} ({} from scorer)'
+                      .format(validation_mrrs.mean(),
+                              scorer_validation_mrrs.mean()))
 
 
+@cli.command()
+def show():
 
+    hyperparam_headers = ('embedding_dim', 'xnor', 'mean_mrr',
+                          'loss', 'n_iter', 'batch_size', 'l2')
+    validation_headers = ('embedding_dim', 'xnor', 'mean_mrr')
+
+    hyperparams_db = Results('movielens_100k.log')
+    validation_db = Results('movielens_100k_validation.log')
+
+    print('Hyperparameters')
+    print(hyperparams_db.load()
+          .to_string(columns=hyperparam_headers))
+    print('Validation')
+    print(validation_db.load()
+          .to_string(columns=validation_headers))
 
 if __name__ == '__main__':
-
     cli(obj={})
