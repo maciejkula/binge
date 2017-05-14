@@ -6,7 +6,9 @@ import time
 
 import numpy as np
 
-from netrex.netrex import Scorer, XNORScorer
+from binge import Scorer, XNORScorer
+
+from binge_experiment.results import Results
 
 
 def _get_representations(num_users,
@@ -52,7 +54,10 @@ def _benchmark(scorer, num_iterations=100, profile_filename=None):
 @click.command()
 @click.option('--num_items', default=100000, help='Number of items to score.')
 @click.option('--profile', is_flag=True, help='Profile the benchmark runs.')
-def benchmark(num_items, profile=False, latent_dims=(256, 512, 1024, 2048)):
+def benchmark(num_items, profile=False, latent_dims=(256, 512, 1024, 2048, 4096)):
+
+    validation_db = Results('movielens_100k_validation.log')
+    validation_db.clear_benchmarks()
 
     for latent_dim in latent_dims:
         representations = _get_representations(1, num_items, latent_dim)
@@ -73,6 +78,13 @@ def benchmark(num_items, profile=False, latent_dims=(256, 512, 1024, 2048)):
             np.median(xnor_scorer_timings),
             np.median(scorer_timings) / np.median(xnor_scorer_timings)
         ))
+
+        validation_db.save_benchmark(latent_dim,
+                                     xnor=False,
+                                     duration=scorer_timings.mean())
+        validation_db.save_benchmark(latent_dim,
+                                     xnor=True,
+                                     duration=xnor_scorer_timings.mean())
 
 
 if __name__ == '__main__':

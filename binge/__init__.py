@@ -1,1 +1,1 @@
-from binge.models import FactorizationModel
+from binge.models import FactorizationModel, Scorer, XNORScorer

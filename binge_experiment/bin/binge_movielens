@@ -1,105 +1,15 @@
 #!/usr/bin/env python
-from datetime import datetime
-import json
-import os
-import sqlite3
-
 import click
-
-import numpy as np
-
-import pandas as pd
 
 from scipy.stats import distributions
 
 from sklearn.model_selection import ParameterSampler
 
-from tabulate import tabulate
-
 from binge import FactorizationModel
 from binge.data import movielens
 from binge.evaluation import mrr_score
 
-
-class Results:
-
-    def __init__(self, fname):
-
-        self._fname = fname
-        self._conn = sqlite3.connect(fname,
-                                     detect_types=sqlite3.PARSE_DECLTYPES)
-        self._conn.row_factory = sqlite3.Row
-
-        self._setup()
-
-    def _setup(self):
-
-        cur = self._conn.cursor()
-
-        cur.execute('CREATE TABLE IF NOT EXISTS results '
-                    '(loss TEXT, '
-                    'embedding_dim INTEGER, '
-                    'n_iter INTEGER, '
-                    'batch_size INTEGER, '
-                    'l2 REAL, '
-                    'use_cuda BOOLEAN, '
-                    'xnor BOOLEAN, '
-                    'mean_mrr REAL, '
-                    'time TIMESTAMP) ')
-
-    def save(self, hyperparameters, mrrs):
-
-        data = hyperparameters.copy()
-        data['mean_mrr'] = mrrs.mean()
-        data['time'] = datetime.now()
-
-        cur = self._conn.cursor()
-
-        cur.execute('INSERT INTO results '
-                    'VALUES (:loss, :embedding_dim, :n_iter, '
-                    ':batch_size, :l2, :use_cuda, :xnor, '
-                    ':mean_mrr, :time)', data)
-        self._conn.commit()
-
-    def __contains__(self, hyperparameters):
-
-        cur = self._conn.cursor()
-
-        cur.execute('SELECT COUNT(*) FROM results '
-                    'WHERE loss=:loss AND embedding_dim=:embedding_dim '
-                    'AND n_iter=:n_iter AND batch_size=:batch_size '
-                    'AND l2=:l2 '
-                    'AND use_cuda=:use_cuda AND xnor=:xnor', hyperparameters)
-
-        return cur.fetchone()[0]
-
-    def load_best(self, embedding_dim, xnor):
-
-        cur = self._conn.cursor()
-
-        cur.execute('SELECT loss, embedding_dim, n_iter, '
-                    'batch_size, l2, use_cuda, xnor FROM results '
-                    'WHERE embedding_dim = :embedding_dim '
-                    'AND xnor = :xnor '
-                    'ORDER BY mean_mrr DESC LIMIT 1',
-                    {'embedding_dim': embedding_dim,
-                     'xnor': xnor})
-
-        return dict(cur.fetchone())
-
-    def __del__(self):
-
-        self._conn.close()
-
-    def load(self):
-
-        cur = self._conn.cursor()
-
-        cur.execute('SELECT loss, embedding_dim, n_iter, '
-                    'batch_size, l2, use_cuda, xnor, mean_mrr FROM results '
-                    'ORDER BY embedding_dim, xnor ASC')
-
-        return pd.DataFrame([dict(x) for x in cur.fetchall()])
+from binge_experiment.results import Results
 
 
 def random_search(train,
@@ -221,7 +131,7 @@ def show():
 
     hyperparam_headers = ('embedding_dim', 'xnor', 'mean_mrr',
                           'loss', 'n_iter', 'batch_size', 'l2')
-    validation_headers = ('embedding_dim', 'xnor', 'mean_mrr')
+    validation_headers = ('embedding_dim', 'xnor', 'mean_mrr', 'duration')
 
     hyperparams_db = Results('movielens_100k.log')
     validation_db = Results('movielens_100k_validation.log')
@@ -232,6 +142,7 @@ def show():
     print('Validation')
     print(validation_db.load()
           .to_string(columns=validation_headers))
+
 
 if __name__ == '__main__':
     cli(obj={})
