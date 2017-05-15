@@ -16,17 +16,20 @@ def random_search(train,
                   test,
                   xnor,
                   embedding_dim,
-                  loss='bpr',
                   cuda=True,
                   iterations=10,
                   minibatch_size=4096,
-                  random_state=None):
+                  random_state=None,
+                  verbose=False):
 
     results_db = Results('movielens_100k.log')
 
     space = {
         'n_iter': distributions.randint(5, 50),
-        'batch_size': [64, 128, 256, 1024, 2048, 4096]
+        'batch_size': [64, 128, 256, 1024, 2048, 4096],
+        'l2': distributions.expon(0, 0.005),
+        'learning_rate': distributions.expon(0, 0.005),
+        'loss': ['bpr', 'adaptive']
     }
 
     sampler = ParameterSampler(space,
@@ -38,8 +41,7 @@ def random_search(train,
                            label='Optimizing hyperparameters for dim={}'.format(
                                embedding_dim)) as bar:
         for hyperparam_set in bar:
-            model = FactorizationModel(loss=loss,
-                                       xnor=xnor,
+            model = FactorizationModel(xnor=xnor,
                                        use_cuda=cuda,
                                        embedding_dim=embedding_dim,
                                        **hyperparam_set)
@@ -70,9 +72,7 @@ def cli(ctx, xnor, gpu, random_seed, verbose):
               help='Number of hyperparam search iterations')
 def optimize(ctx, num_iterations=10):
 
-    (xnor, gpu, random_seed, _) = ctx.obj['options']
-
-    loss = 'bpr'
+    (xnor, gpu, random_seed, verbose) = ctx.obj['options']
 
     train, test, validation = movielens.fetch_movielens(
         random_seed=random_seed
@@ -85,8 +85,8 @@ def optimize(ctx, num_iterations=10):
                       embedding_dim=embedding_dim,
                       iterations=num_iterations,
                       cuda=gpu,
-                      loss=loss,
-                      random_state=random_seed)
+                      random_state=random_seed,
+                      verbose=verbose)
 
 
 @cli.command()
@@ -106,6 +106,9 @@ def validate(ctx):
                            label='Running validation') as bar:
         for embedding_dim in bar:
             hyperparams = results_db.load_best(embedding_dim, xnor)
+
+            if verbose:
+                print('Validating hyperparams {}'.format(hyperparams))
 
             if hyperparams in validation_db:
                 continue
@@ -130,8 +133,8 @@ def validate(ctx):
 def show():
 
     hyperparam_headers = ('embedding_dim', 'xnor', 'mean_mrr',
-                          'loss', 'n_iter', 'batch_size', 'l2')
-    validation_headers = ('embedding_dim', 'xnor', 'mean_mrr', 'duration')
+                          'loss', 'n_iter', 'batch_size', 'l2', 'learning_rate')
+    validation_headers = ('embedding_dim', 'xnor', 'mean_mrr', 'duration', 'qpms')
 
     hyperparams_db = Results('movielens_100k.log')
     validation_db = Results('movielens_100k_validation.log')

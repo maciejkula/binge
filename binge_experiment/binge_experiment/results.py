@@ -25,6 +25,7 @@ class Results:
                     'n_iter INTEGER, '
                     'batch_size INTEGER, '
                     'l2 REAL, '
+                    'learning_rate REAL, '
                     'use_cuda BOOLEAN, '
                     'xnor BOOLEAN, '
                     'mean_mrr REAL, '
@@ -45,7 +46,7 @@ class Results:
 
         cur.execute('INSERT INTO results '
                     'VALUES (:loss, :embedding_dim, :n_iter, '
-                    ':batch_size, :l2, :use_cuda, :xnor, '
+                    ':batch_size, :l2, :learning_rate, :use_cuda, :xnor, '
                     ':mean_mrr, :time)', data)
         self._conn.commit()
 
@@ -78,7 +79,7 @@ class Results:
         cur.execute('SELECT COUNT(*) FROM results '
                     'WHERE loss=:loss AND embedding_dim=:embedding_dim '
                     'AND n_iter=:n_iter AND batch_size=:batch_size '
-                    'AND l2=:l2 '
+                    'AND l2=:l2 AND learning_rate=:learning_rate '
                     'AND use_cuda=:use_cuda AND xnor=:xnor', hyperparameters)
 
         return cur.fetchone()[0]
@@ -88,7 +89,7 @@ class Results:
         cur = self._conn.cursor()
 
         cur.execute('SELECT loss, embedding_dim, n_iter, '
-                    'batch_size, l2, use_cuda, xnor FROM results '
+                    'batch_size, l2, learning_rate, use_cuda, xnor FROM results '
                     'WHERE embedding_dim = :embedding_dim '
                     'AND xnor = :xnor '
                     'ORDER BY mean_mrr DESC LIMIT 1',
@@ -106,8 +107,9 @@ class Results:
         cur = self._conn.cursor()
 
         cur.execute('SELECT loss, results.embedding_dim AS embedding_dim, n_iter, '
-                    'batch_size, l2, use_cuda, results.xnor AS xnor, mean_mrr, '
-                    'COALESCE(duration, 0.0) AS duration '
+                    'batch_size, l2, learning_rate, use_cuda, results.xnor AS xnor, mean_mrr, '
+                    'COALESCE(duration, 0.0) AS duration, '
+                    '0.001 / COALESCE(duration, 0.0) AS qpms '
                     'FROM results '
                     'LEFT JOIN benchmark ON ('
                     'results.embedding_dim = benchmark.embedding_dim '

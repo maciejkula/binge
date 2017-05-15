@@ -138,6 +138,7 @@ class FactorizationModel(object):
                  n_iter=3,
                  batch_size=64,
                  l2=0.0,
+                 learning_rate=1e-3,
                  use_cuda=False,
                  sparse=False):
 
@@ -150,6 +151,7 @@ class FactorizationModel(object):
         self._n_iter = n_iter
         self._batch_size = batch_size
         self._l2 = l2
+        self._learning_rate = learning_rate
         self._use_cuda = use_cuda
         self._sparse = sparse
         self._xnor = xnor
@@ -165,6 +167,7 @@ class FactorizationModel(object):
                 'n_iter': self._n_iter,
                 'batch_size': self._batch_size,
                 'l2': self._l2,
+                'learning_rate': self._learning_rate,
                 'use_cuda': self._use_cuda,
                 'xnor': self._xnor}
 
@@ -196,8 +199,7 @@ class FactorizationModel(object):
         return (1.0 - F.sigmoid(self._net(users, items) -
                                 self._net(users, negatives))).mean()
 
-    def _adaptive_loss(self, users, items, ratings,
-        n_neg_candidates=5):
+    def _adaptive_loss(self, users, items, ratings, n_neg_candidates=5):
         negatives = Variable(
             _gpu(
                 torch.from_numpy(
@@ -255,12 +257,9 @@ class FactorizationModel(object):
             self._use_cuda
         )
 
-        if self._sparse:
-            optimizer = optim.Adagrad(self._net.parameters(),
-                                      weight_decay=self._l2)
-        else:
-            optimizer = optim.Adam(self._net.parameters(),
-                                   weight_decay=self._l2)
+        optimizer = optim.Adam(self._net.parameters(),
+                               lr=self._learning_rate,
+                               weight_decay=self._l2)
 
         if self._loss == 'pointwise':
             loss_fnc = self._pointwise_loss

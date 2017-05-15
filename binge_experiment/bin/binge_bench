@@ -81,10 +81,12 @@ def benchmark(num_items, profile=False, latent_dims=(256, 512, 1024, 2048, 4096)
 
         validation_db.save_benchmark(latent_dim,
                                      xnor=False,
-                                     duration=scorer_timings.mean())
+                                     duration=(scorer_timings.mean()
+                                               / num_items).mean())
         validation_db.save_benchmark(latent_dim,
                                      xnor=True,
-                                     duration=xnor_scorer_timings.mean())
+                                     duration=(xnor_scorer_timings
+                                               / num_items).mean())
 
 
 if __name__ == '__main__':
