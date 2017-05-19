@@ -2,7 +2,7 @@ import numpy as np
 
 from binge import FactorizationModel
 from binge.data import movielens
-from binge.native import get_lib
+from binge.native import align, get_lib
 
 
 def _predict_float_256(user_vector,
@@ -53,12 +53,11 @@ def test_predict_float_256():
 
     num_items = 1024
 
-    for latent_dim in (1, 45, 256, 512, 1024):
-
-        user_vector = np.random.random(latent_dim).astype(np.float32)
-        item_vectors = np.random.random((num_items, latent_dim)).astype(np.float32)
+    for latent_dim in (1, 5, 16, 32, 128, 256):
+        user_vector = align(np.random.random(latent_dim).astype(np.float32))
+        item_vectors = align(np.random.random((num_items, latent_dim)).astype(np.float32))
         user_bias = 1.0
-        item_biases = np.random.random(num_items).astype(np.float32)
+        item_biases = align(np.random.random(num_items).astype(np.float32))
 
         expected = _predict_float_256(user_vector,
                                       item_vectors,
@@ -87,15 +86,17 @@ def test_scorer():
 
 def test_xnor_scorer():
 
-    model = _get_model(xnor=True)
-    scorer = model.get_scorer()
+    for latent_dim in (32, 128, 256):
 
-    item_ids = np.arange(len(scorer._item_biases))
+        model = _get_model(xnor=True, embedding_dim=latent_dim)
+        scorer = model.get_scorer()
 
-    expected = _predict_xnor_256(scorer, 0)
-    predictions = scorer.predict(0)
+        item_ids = np.arange(len(scorer._item_biases))
 
-    assert np.allclose(expected, predictions, atol=0.000001)
+        expected = _predict_xnor_256(scorer, 0)
+        predictions = scorer.predict(0)
 
-    expected = model.predict(np.repeat(0, len(item_ids)), item_ids)
-    assert np.allclose(expected, predictions, atol=0.000001)
+        assert np.allclose(expected, predictions, atol=0.000001)
+
+        expected = model.predict(np.repeat(0, len(item_ids)), item_ids)
+        assert np.allclose(expected, predictions, atol=0.000001)

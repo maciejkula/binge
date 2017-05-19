@@ -80,30 +80,36 @@ void predict_float_256(float* user_vector,
 
     __m256 x, y, product, prediction;
     float scalar_prediction;
-    float unpacked[8];
+    float unpacked[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+    int j;
 
     for (int i = 0; i < num_items; i++) {
 
-        item_vector = item_vectors + (i * latent_dim);
-        prediction = _mm256_xor_ps(prediction, prediction);
-
-        for (int j = 0; j < latent_dim; j += 8) {
-            x = _mm256_loadu_ps(item_vector + j);
-            y = _mm256_loadu_ps(user_vector + j);
-
-            product = _mm256_mul_ps(x, y);
-
-            prediction = _mm256_add_ps(
-                prediction,
-                product);
-        }
-
-        _mm256_storeu_ps(unpacked, prediction);
-
         scalar_prediction = item_biases[i] + user_bias;
 
-        for (int j = 0; j < 8; j++) {
-            scalar_prediction += unpacked[j];
+        item_vector = item_vectors + (i * latent_dim);
+
+        prediction = _mm256_setzero_ps();
+
+        j = 0;
+
+        for (; latent_dim - j >= 8; j += 8) {
+            x = _mm256_load_ps(item_vector + j);
+            y = _mm256_load_ps(user_vector + j);
+
+            prediction = _mm256_fmadd_ps(x, y, prediction);
+        }
+
+        _mm256_store_ps(unpacked, prediction);
+
+        for (int k = 0; k < 8; k++) {
+            scalar_prediction += unpacked[k];
+        }
+
+        // Remainder
+        for (; j < latent_dim; j++) {
+            scalar_prediction += item_vector[j] * user_vector[j];
         }
 
         out[i] = scalar_prediction;

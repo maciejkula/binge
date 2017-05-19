@@ -6,6 +6,21 @@ from cffi import FFI
 import numpy as np
 
 
+def align(array, alignment=32):
+
+    if (array.ctypes.data % alignment) == 0:
+        return array
+
+    extra = alignment // array.itemsize
+    buf = np.empty(array.size + extra, dtype=array.dtype)
+    ofs = (-buf.ctypes.data % alignment) // array.itemsize
+
+    aligned = buf[ofs:ofs + array.size].reshape(array.shape)
+    np.copyto(aligned, array)
+
+    return aligned
+
+
 class Extension:
 
     def __init__(self, lib):
