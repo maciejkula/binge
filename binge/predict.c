@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdint.h>
 #include <x86intrin.h>
 #include "libpopcnt.h"
@@ -78,7 +79,7 @@ void predict_float_256(float* user_vector,
 
     float* item_vector;
 
-    __m256 x, y, product, prediction;
+    __m256 x, y, prediction;
     float scalar_prediction;
     float unpacked[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -86,15 +87,12 @@ void predict_float_256(float* user_vector,
 
     for (int i = 0; i < num_items; i++) {
 
+        prediction = _mm256_setzero_ps();
         scalar_prediction = item_biases[i] + user_bias;
 
         item_vector = item_vectors + (i * latent_dim);
 
-        prediction = _mm256_setzero_ps();
-
-        j = 0;
-
-        for (; latent_dim - j >= 8; j += 8) {
+        for (j = 0; j + 8 <= latent_dim; j += 8) {
             x = _mm256_load_ps(item_vector + j);
             y = _mm256_load_ps(user_vector + j);
 
@@ -117,8 +115,8 @@ void predict_float_256(float* user_vector,
 }
 
 
-void predict_xnor_256(float* user_vector,
-                      float* item_vectors,
+void predict_xnor_256(int32_t* user_vector,
+                      int32_t* item_vectors,
                       float user_bias,
                       float* item_biases,
                       float user_norm,
@@ -127,21 +125,21 @@ void predict_xnor_256(float* user_vector,
                       intptr_t num_items,
                       intptr_t latent_dim) {
 
-    float* item_vector;
+    int32_t* item_vector;
+    int j;
 
-    __m256 x, y;
+    __m256i x, y, xnor;
     float scalar_prediction;
-    float on_bits;
+    unsigned int on_bits;
+    int32_t bits[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     int cpuid = _get_cpuid();
 
-    float bits[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-
     float max_on_bits = latent_dim * 32;
 
-    __m256 allbits = _mm256_cmp_ps(_mm256_loadu_ps(bits),
-                                   _mm256_loadu_ps(bits),
-                                   0);
+    __m256i allbits = _mm256_cmpeq_epi32(
+        _mm256_setzero_si256(),
+        _mm256_setzero_si256());
 
     for (int i = 0; i < num_items; i++) {
 
@@ -149,20 +147,30 @@ void predict_xnor_256(float* user_vector,
         scalar_prediction = 0;
         on_bits = 0;
 
-        for (int j = 0; j < latent_dim; j += 8) {
-            x = _mm256_loadu_ps(item_vector + j);
-            y = _mm256_loadu_ps(user_vector + j);
+        j = 0;
+
+        for (; j + 8 <= latent_dim; j += 8) {
+
+            // Load
+            x = _mm256_load_si256(item_vector + j);
+            y = _mm256_load_si256(user_vector + j);
 
             // XNOR
-            _mm256_storeu_ps(bits, _mm256_xor_ps(_mm256_xor_ps(x, y), allbits));
+            xnor = _mm256_xor_si256(_mm256_xor_si256(x, y), allbits);
+            _mm256_store_si256(bits, xnor);
 
             // Bitcount
-            on_bits += popcnt_no_cpuid((const void*) bits, 8 * sizeof(float), cpuid);
-            // on_bits += popcnt((const void*) bits, 8 * sizeof(float));
+            on_bits += popcnt_no_cpuid((const void*) bits,
+                                       8 * sizeof(float), cpuid);
+        }
+
+        for (; j < latent_dim; j++) {
+            on_bits += __builtin_popcount(~(user_vector[j] ^ item_vector[j]));
         }
 
         // Scaling
-        scalar_prediction = (on_bits - (max_on_bits - on_bits)) * user_norm * item_norms[i];
+        scalar_prediction = (on_bits - (max_on_bits - on_bits))
+            * user_norm * item_norms[i];
 
         // Biases
         out[i] = scalar_prediction + user_bias + item_biases[i];

@@ -102,8 +102,8 @@ def _build_module():
                        float* out,
                        intptr_t num_items,
                        intptr_t latent_dim);
-    void predict_xnor_256(float* user_vector,
-                      float* item_vectors,
+    void predict_xnor_256(int32_t* user_vector,
+                      int32_t* item_vectors,
                       float user_bias,
                       float* item_biases,
                       float user_norm,

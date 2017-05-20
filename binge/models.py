@@ -10,7 +10,7 @@ import torch.optim as optim
 from torch.autograd import Variable, Function
 
 from binge.layers import ScaledEmbedding, ZeroEmbedding
-from binge.native import get_lib
+from binge.native import align, get_lib
 
 
 def _gpu(tensor, gpu=False):
@@ -401,12 +401,10 @@ class Scorer:
                  item_vectors,
                  item_biases):
 
-        assert item_vectors.shape[1] % 8 == 0
-
-        self._user_vectors = user_vectors
-        self._user_biases = user_biases
-        self._item_vectors = item_vectors
-        self._item_biases = item_biases
+        self._user_vectors = align(user_vectors)
+        self._user_biases = align(user_biases)
+        self._item_vectors = align(item_vectors)
+        self._item_biases = align(item_biases)
 
         self._lib = get_lib()
 
@@ -439,15 +437,15 @@ class XNORScorer:
                  item_vectors,
                  item_biases):
 
-        assert item_vectors.shape[1] % 8 == 0
+        assert item_vectors.shape[1] >= 32
 
-        self._user_norms = np.abs(user_vectors).mean(axis=1)
-        self._item_norms = np.abs(item_vectors).mean(axis=1)
+        self._user_norms = align(np.abs(user_vectors).mean(axis=1))
+        self._item_norms = align(np.abs(item_vectors).mean(axis=1))
 
-        self._user_vectors = binarize_array(user_vectors)
-        self._user_biases = user_biases
-        self._item_vectors = binarize_array(item_vectors)
-        self._item_biases = item_biases
+        self._user_vectors = align(binarize_array(user_vectors))
+        self._user_biases = align(user_biases)
+        self._item_vectors = align(binarize_array(item_vectors))
+        self._item_biases = align(item_biases)
 
         self._lib = get_lib()
 
