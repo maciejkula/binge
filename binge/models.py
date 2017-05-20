@@ -55,6 +55,47 @@ def binary_dot(x, y):
     return xnor.sum(1) * x_scale * y_scale
 
 
+class BinaryDot(Function):
+
+    def forward(self, x, y):
+
+        x_scale = x.abs().mean(1)
+        y_scale = y.abs().mean(1)
+
+        sign_x = x.sign()
+        sign_y = y.sign()
+
+        xnor = sign_x * sign_y
+
+        self.save_for_backward(x, y)
+
+        return xnor.sum(1) * x_scale * y_scale
+
+    def backward(self, grad_output):
+
+        x, y = self.saved_tensors
+
+        embedding_dim = x.size()[1]
+
+        x_scale = x.abs().mean(1)
+        y_scale = y.abs().mean(1)
+
+        sign_x = x.sign() * x_scale.expand_as(x)
+        sign_y = y.sign() * y_scale.expand_as(y)
+
+        return (sign_y * grad_output.expand_as(y)
+                * (1.0 / embedding_dim + (x.abs() < 1.0).float().abs()
+                   * x_scale.expand_as(y)),
+                sign_x * grad_output.expand_as(x)
+                * (1.0 / embedding_dim + (y.abs() < 1.0).float().abs()
+                   * y_scale.expand_as(x)))
+
+
+# def binary_dot(x, y):
+
+#     return BinaryDot()(x, y)
+
+
 class Sign(Function):
 
     def forward(self, x):

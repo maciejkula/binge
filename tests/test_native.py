@@ -51,24 +51,25 @@ def test_predict_float_256():
 
     lib = get_lib()
 
-    latent_dim = 128
     num_items = 1024
 
-    user_vector = np.random.random(latent_dim).astype(np.float32)
-    item_vectors = np.random.random((num_items, latent_dim)).astype(np.float32)
-    user_bias = 1.0
-    item_biases = np.random.random(num_items).astype(np.float32)
+    for latent_dim in (1, 45, 256, 512, 1024):
 
-    expected = _predict_float_256(user_vector,
-                                  item_vectors,
-                                  user_bias,
-                                  item_biases)
-    ffi_result = lib.predict_float_256(user_vector,
-                                       item_vectors,
-                                       user_bias,
-                                       item_biases)
+        user_vector = np.random.random(latent_dim).astype(np.float32)
+        item_vectors = np.random.random((num_items, latent_dim)).astype(np.float32)
+        user_bias = 1.0
+        item_biases = np.random.random(num_items).astype(np.float32)
 
-    assert np.allclose(expected, ffi_result)
+        expected = _predict_float_256(user_vector,
+                                      item_vectors,
+                                      user_bias,
+                                      item_biases)
+        ffi_result = lib.predict_float_256(user_vector,
+                                           item_vectors,
+                                           user_bias,
+                                           item_biases)
+
+        assert np.allclose(expected, ffi_result)
 
 
 def test_scorer():

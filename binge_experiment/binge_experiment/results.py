@@ -102,7 +102,7 @@ class Results:
 
         self._conn.close()
 
-    def load(self):
+    def load(self, best_only=False):
 
         cur = self._conn.cursor()
 
@@ -121,15 +121,24 @@ class Results:
         if not data:
             raise Exception('No data to be read')
 
-        return pd.DataFrame(data)
+        if best_only:
+            return (pd.DataFrame(data)
+                    .sort_values('mean_mrr', ascending=False)
+                    .groupby(['embedding_dim', 'xnor'], as_index=False)
+                    .first()
+                    .sort_values(['embedding_dim', 'xnor']))
+        else:
+            return pd.DataFrame(data)
 
     def plot(self, fname):
 
+        import matplotlib
+        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
-
-        data = self.load()
         import seaborn as sns
         sns.set_style("ticks")
+
+        data = self.load()
 
         xnor_data = data[data['xnor'] == 1]
         float_data = data[data['xnor'] == 0]

@@ -14,6 +14,7 @@ from binge_experiment.results import Results
 
 def random_search(train,
                   test,
+                  validation,
                   xnor,
                   embedding_dim,
                   cuda=True,
@@ -27,9 +28,11 @@ def random_search(train,
     space = {
         'n_iter': distributions.randint(5, 50),
         'batch_size': [64, 128, 256, 1024, 2048, 4096],
-        'l2': distributions.expon(0, 0.005),
-        'learning_rate': distributions.expon(0, 0.005),
-        'loss': ['bpr']  # TODO: re-enable adaptive loss
+        'l2': [0.0],
+        'learning_rate': [1e-3],
+        # 'l2': distributions.expon(0, 0.005),
+        # 'learning_rate': distributions.expon(0, 0.005),
+        'loss': ['bpr', 'adaptive']  # TODO: re-enable adaptive loss
     }
 
     sampler = ParameterSampler(space,
@@ -50,20 +53,61 @@ def random_search(train,
                 continue
 
             model.fit(train)
-            mrr = mrr_score(model, test, train)
+            mrr = mrr_score(model, test, train + validation)
+
+            if verbose:
+                print('Hyperparams {}, score {}'.format(model.get_params(),
+                                                        mrr.mean()))
 
             results_db.save(model.get_params(), mrr)
 
 
 @click.group()
 @click.pass_context
-@click.option('--random-seed', default=42)
+@click.option('--random-seed', default=420)
 @click.option('--gpu', is_flag=True, help='Use the GPU')
 @click.option('--xnor/--no-xnor', default=False)
 @click.option('--verbose', is_flag=True)
 def cli(ctx, xnor, gpu, random_seed, verbose):
 
     ctx.obj['options'] = (xnor, gpu, random_seed, verbose)
+
+
+@cli.command()
+@click.pass_context
+def check(ctx):
+
+    (xnor, gpu, random_seed, verbose) = ctx.obj['options']
+
+    train, test, validation = movielens.fetch_movielens(
+        random_seed=random_seed
+    )
+
+    batch_size = 128
+    n_iter = 10
+    embedding_dim = 64
+
+    model = FactorizationModel(embedding_dim=embedding_dim,
+                               batch_size=batch_size,
+                               n_iter=n_iter,
+                               loss='bpr')
+    model.fit(train, verbose=verbose)
+
+    validation_mrrs = mrr_score(model, validation, train + test)
+
+    print('Validation MRR for bpr: {}'
+          .format(validation_mrrs.mean()))
+
+    model = FactorizationModel(embedding_dim=embedding_dim,
+                               batch_size=batch_size,
+                               n_iter=n_iter,
+                               loss='adaptive')
+    model.fit(train, verbose=verbose)
+
+    validation_mrrs = mrr_score(model, validation, train + test)
+
+    print('Validation MRR for adaptive: {}'
+          .format(validation_mrrs.mean()))
 
 
 @cli.command()
@@ -78,9 +122,10 @@ def optimize(ctx, num_iterations=10):
         random_seed=random_seed
     )
 
-    for embedding_dim in (256, 512, 1024, 2048, 4096):
+    for embedding_dim in (32, 64, 128, 256, 512, 1024, 2048, 4096):
         random_search(train,
                       test,
+                      validation,
                       xnor,
                       embedding_dim=embedding_dim,
                       iterations=num_iterations,
@@ -102,7 +147,7 @@ def validate(ctx):
         random_seed=random_seed
     )
 
-    with click.progressbar((256, 512, 1024, 2048, 4096),
+    with click.progressbar((32, 64, 128, 256, 512, 1024, 2048, 4096),
                            label='Running validation') as bar:
         for embedding_dim in bar:
             hyperparams = results_db.load_best(embedding_dim, xnor)
