@@ -122,3 +122,28 @@ class Results:
             raise Exception('No data to be read')
 
         return pd.DataFrame(data)
+
+    def plot(self, fname):
+
+        import matplotlib.pyplot as plt
+
+        data = self.load()
+        import seaborn as sns
+        sns.set_style("ticks")
+
+        xnor_data = data[data['xnor'] == 1]
+        float_data = data[data['xnor'] == 0]
+
+        fig, ax = plt.subplots()
+        ax.set(xscale='log',
+               xlabel='Predictions per millisecond',
+               ylabel='MRR')
+        ax.plot(xnor_data['qpms'],
+                xnor_data['mean_mrr'],
+                label='XNOR')
+        ax.plot(float_data['qpms'],
+                float_data['mean_mrr'],
+                label='Real-valued')
+        ax.legend()
+        fig.suptitle('MRR-Scores Per Millisecond Tradeoff')
+        fig.savefig(fname)

@@ -29,7 +29,7 @@ def random_search(train,
         'batch_size': [64, 128, 256, 1024, 2048, 4096],
         'l2': distributions.expon(0, 0.005),
         'learning_rate': distributions.expon(0, 0.005),
-        'loss': ['bpr', 'adaptive']
+        'loss': ['bpr']  # TODO: re-enable adaptive loss
     }
 
     sampler = ParameterSampler(space,
@@ -145,6 +145,13 @@ def show():
     print('Validation')
     print(validation_db.load()
           .to_string(columns=validation_headers))
+
+
+@cli.command()
+def plot():
+
+    validation_db = Results('movielens_100k_validation.log')
+    validation_db.plot('movielens.svg')
 
 
 if __name__ == '__main__':
