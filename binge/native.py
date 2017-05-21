@@ -21,6 +21,11 @@ def align(array, alignment=32):
     return aligned
 
 
+def _assert_aligned(array, alignment=32):
+
+    assert not array.ctypes.data % alignment
+
+
 class Extension:
 
     def __init__(self, lib):
@@ -38,6 +43,9 @@ class Extension:
                           user_bias,
                           item_biases,
                           out=None):
+
+        _assert_aligned(item_vectors)
+        _assert_aligned(user_vector)
 
         cast = self._cast
 
@@ -65,6 +73,9 @@ class Extension:
                          user_norm,
                          item_norms,
                          out=None):
+
+        _assert_aligned(item_vectors)
+        _assert_aligned(user_vector)
 
         cast = self._cast
 
@@ -128,5 +139,7 @@ def get_lib():
 
     if not libs:
         raise Exception('Compiled extension not found under {}'.format(path))
+    if len(libs) > 1:
+        raise Exception('More than one version of extension found: {}'.format(libs))
 
     return Extension(ffi.dlopen(libs[0]))

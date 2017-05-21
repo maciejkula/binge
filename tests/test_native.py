@@ -73,20 +73,25 @@ def test_predict_float_256():
 
 def test_scorer():
 
-    model = _get_model()
-    scorer = model.get_scorer()
+    for latent_dim in (32, 64, 128, 256):
 
-    item_ids = np.arange(len(scorer._item_biases))
+        model = _get_model(xnor=False, embedding_dim=latent_dim)
+        scorer = model.get_scorer()
 
-    expected = model.predict(np.repeat(0, len(item_ids)), item_ids)
-    predictions = scorer.predict(0)
+        item_ids = np.arange(len(scorer._item_biases))
 
-    assert np.allclose(expected, predictions, atol=0.000001)
+        expected = model.predict(0, item_ids)
+        predictions = scorer.predict(0)
+
+        assert np.allclose(expected, predictions, atol=0.000001)
+
+        expected = model.predict(np.repeat(0, len(item_ids)), item_ids)
+        assert np.allclose(expected, predictions, atol=0.000001)
 
 
 def test_xnor_scorer():
 
-    for latent_dim in (32, 128, 256):
+    for latent_dim in (32, 64, 128, 256):
 
         model = _get_model(xnor=True, embedding_dim=latent_dim)
         scorer = model.get_scorer()

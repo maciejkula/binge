@@ -47,6 +47,7 @@ def random_search(train,
             model = FactorizationModel(xnor=xnor,
                                        use_cuda=cuda,
                                        embedding_dim=embedding_dim,
+                                       random_seed=random_state,
                                        **hyperparam_set)
 
             if model.get_params() in results_db:
@@ -90,6 +91,7 @@ def check(ctx):
     model = FactorizationModel(embedding_dim=embedding_dim,
                                batch_size=batch_size,
                                n_iter=n_iter,
+                               random_seed=random_seed,
                                loss='bpr')
     model.fit(train, verbose=verbose)
 

@@ -12,8 +12,6 @@ def mrr_score(model, test, train=None):
     if train is not None:
         train = train.tocsr()
 
-    item_ids = np.arange(test.shape[1], dtype=np.int32)
-
     mrrs = []
 
     for user_id, row in enumerate(test):
@@ -21,7 +19,7 @@ def mrr_score(model, test, train=None):
         if not len(row.indices):
             continue
 
-        predictions = -model.predict(user_id, item_ids)
+        predictions = -model.predict(user_id)
 
         if train is not None:
             predictions[train[user_id].indices] = np.finfo(np.float32).max
@@ -40,8 +38,6 @@ def auc_score(model, test, train=None):
     if train is not None:
         train = train.tocsr()
 
-    item_ids = np.arange(test.shape[1], dtype=np.int32)
-
     aucs = []
 
     for user_id, row in enumerate(test):
@@ -49,7 +45,7 @@ def auc_score(model, test, train=None):
         if not len(row.indices):
             continue
 
-        predictions = model.predict(user_id, item_ids)
+        predictions = model.predict(user_id)
 
         if train is not None:
             predictions[train[user_id].indices] = np.finfo(np.float32).max
