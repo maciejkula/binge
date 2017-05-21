@@ -423,7 +423,7 @@ class Scorer:
             item_ids = slice(0, None, None)
 
         return self._lib.predict_float_256(
-            self._user_vectors[user_id],
+            align(self._user_vectors[user_id]),
             self._item_vectors[item_ids],
             self._user_biases[user_id],
             self._item_biases[item_ids])
@@ -431,7 +431,7 @@ class Scorer:
     def _predict_bench(self, user_id, out):
 
         return self._lib.predict_float_256(
-            self._user_vectors[user_id],
+            align(self._user_vectors[user_id]),
             self._item_vectors,
             self._user_biases[user_id],
             self._item_biases,
@@ -464,7 +464,7 @@ class XNORScorer:
             item_ids = slice(0, None, None)
 
         return self._lib.predict_xnor_256(
-            self._user_vectors[user_id],
+            align(self._user_vectors[user_id]),
             self._item_vectors[item_ids],
             self._user_biases[user_id],
             self._item_biases[item_ids],
@@ -474,7 +474,7 @@ class XNORScorer:
     def _predict_bench(self, user_id, out):
 
         return self._lib.predict_xnor_256(
-            self._user_vectors[user_id],
+            align(self._user_vectors[user_id]),
             self._item_vectors,
             self._user_biases[user_id],
             self._item_biases,
