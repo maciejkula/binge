@@ -417,6 +417,13 @@ class Scorer:
 
         self._lib = get_lib()
 
+    def _parameters(self):
+
+        return (self._user_vectors,
+                self._item_vectors,
+                self._user_biases,
+                self._item_biases)
+
     def predict(self, user_id, item_ids=None):
 
         if item_ids is None:
@@ -436,6 +443,12 @@ class Scorer:
             self._user_biases[user_id],
             self._item_biases,
             out)
+
+    def memory(self):
+
+        get_size = lambda x: x.itemsize * x.size
+
+        return sum(get_size(x) for x in self._parameters())
 
 
 class XNORScorer:
@@ -457,6 +470,15 @@ class XNORScorer:
         self._item_biases = align(item_biases)
 
         self._lib = get_lib()
+
+    def _parameters(self):
+
+        return (self._user_norms,
+                self._item_norms,
+                self._user_vectors,
+                self._item_vectors,
+                self._user_biases,
+                self._item_biases)
 
     def predict(self, user_id, item_ids=None):
 
@@ -481,3 +503,9 @@ class XNORScorer:
             self._user_norms[user_id],
             self._item_norms,
             out)
+
+    def memory(self):
+
+        get_size = lambda x: x.itemsize * x.size
+
+        return sum(get_size(x) for x in self._parameters())

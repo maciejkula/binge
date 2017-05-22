@@ -34,6 +34,7 @@ class Results:
                     '(embedding_dim INTEGER, '
                     'xnor BOOLEAN, '
                     'duration REAL, '
+                    'memory INTEGER, '
                     'time TIMESTAMP)')
 
     def save(self, hyperparameters, mrrs):
@@ -50,16 +51,17 @@ class Results:
                     ':mean_mrr, :time)', data)
         self._conn.commit()
 
-    def save_benchmark(self, embedding_dim, xnor, duration):
+    def save_benchmark(self, embedding_dim, xnor, duration, memory):
 
         cur = self._conn.cursor()
 
         cur.execute('INSERT INTO benchmark '
                     'VALUES (:embedding_dim, '
-                    ':xnor, :duration, :time)',
+                    ':xnor, :duration, :memory, :time)',
                     {'embedding_dim': embedding_dim,
                      'xnor': xnor,
                      'duration': duration,
+                     'memory': memory,
                      'time': datetime.now()})
 
         self._conn.commit()
@@ -109,7 +111,8 @@ class Results:
         cur.execute('SELECT loss, results.embedding_dim AS embedding_dim, n_iter, '
                     'batch_size, l2, learning_rate, use_cuda, results.xnor AS xnor, mean_mrr, '
                     'COALESCE(duration, 0.0) AS duration, '
-                    '0.001 / COALESCE(duration, 0.0) AS qpms '
+                    '0.001 / COALESCE(duration, 0.0) AS qpms, '
+                    'memory '
                     'FROM results '
                     'LEFT JOIN benchmark ON ('
                     'results.embedding_dim = benchmark.embedding_dim '
