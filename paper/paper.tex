@@ -1,6 +1,16 @@
-\title{XNOR}
+\title{Binary Latent Representations for Efficient Ranking}
 \author{Maciej Kula}
 \date{\today}
+
+% --- Symbols
+\newcommand\symUserSet{U}
+\newcommand\symItemSet{I}
+\newcommand\symUserFeaturesSet{F^U}
+\newcommand\symItemFeaturesSet{F^I}
+\newcommand\symItemEmbeddingMatrix{E^I}
+\newcommand\symUserEmbeddingMatrix{E^U}
+
+\newcommand\symUserInteractionSet{S}
 
 \documentclass[sigconf]{acmart}
 \begin{document}
@@ -16,15 +26,39 @@
 
 Industry ranking and recommendation systems need to scale to tens or hundreds of millions of items and users. Ranking latency (in on-line settings) and compute and storage costs (in pre-compute settings) place significant contraints on the design of the resulting system.
 
-To alleviate these constraints, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of [XNOR], we show that we can estimate binary user and item representations that achieve comparable accuracy to standard learning-to-rank approaches while being several times faster to score and requiring a fraction of the memory. In our MovieLens 100k experiments, our binary representations are within 1\% of the accuracy of the real-valued model, but are over 2 times faster to score and take 50\% of the memory.
+To alleviate these constraints, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \cite{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable accuracy to standard learning-to-rank approaches while being several times faster to score and requiring a fraction of the memory. In our MovieLens 100k experiments, our binary representations are within 1\% of the accuracy of the real-valued model, but are over 2 times faster to score and take 50\% of the memory.
 
 \section{Related work}
 \subsection{Heuristics}
-\subsection{Approximate nearest neighbours}
+\subsection{Approximate inner product search}
+\cite{shrivastava2014asymmetric} propose a solution fo efficient ranking of large result sets through approximate maximum inner product search (MIPS). They extend well-known \citep{indyk1998approximate} locality-sensitive hashing techniques to the MIPS setting through asymmtric transformations of the query and candidate vectors, and show their applicability to recommender systems.
+\cite{Shen_2015_ICCV} expand on this approach by learning asymmetric binary hash functions. The hash functions are trained to minimize the L2 norm between the inner product matrix of the original input vectors and their trained binary representations.
 \subsection{Quantization}
 
 
 \section{Our approach}
+\cite{rastegari2016xnor} introduce XNOR-Networks, an approach that combines 1-bit quantization of fully-connected and convolutional layers with representing dot products through scaled XNOR and bitcounting operations.
+
+We adapt their approach to the recommendation task by learning binary versions of user and item vectors within a learning-to-rank factorization model.
+
+Formally, let $\symUserSet$ be the set of users, and $\symItemSet$ be the set of items. Each user interacts with a number of items $\symUserInteractionSet_i^+$; the set of all remaining items is denoted by $\symUserInteractionSet^-$.
+
+In a traditional real-valued model, the prediction $r_{ui}$ for any user-item interaction pair $(u, i) \in \symUserSet \times \symItemSet$ would be given by
+\begin{equation}
+r_{ui} = \sigma(\vec{u_i}) \cdot \vec{i_i} + b_i + b_u)
+\end{equation}
+where $\sigma$ denotes the sigmoid function, $\vec{u_i}$ the user and $\vec{i_i}$ the item latent vector.
+
+In the binary representation model the above is approximated by
+\begin{equation}
+\mathrm{sign}(\vec{u_i}) \cdot \mathrm{sign}(\vec{i_i}) \cdot \Vert\vec{u_i}\Vert_{l1} \cdot \Vert\vec{i_i}\Vert_{l1}
+\end{equation}
+
+% explain the derivation
+
+We train the model using the Bayesian Personalised Ranking (BPR, \cite{rendle2009bpr}) loss,
+
+
 Note that the binary dot produt approach generalizes beyond simple factorization models, and can be applied as a component of any model whose final scoring step involves a dot product between user and item representations. In particular, models using recurrent (like Session-based Recommendations with Recurrent Neural Networks) or convolutional (Images Don’t Lie: Transferring Deep Visual Semantic
 Features to Large-Scale Multimodal Learning to Rank) item or user representations can easily be augmented to use binary dot products in the final ranking stages.
 
