@@ -62,8 +62,7 @@ In the binary representation model the above is approximated by
 We train the model using the Bayesian Personalised Ranking (BPR, \cite{rendle2009bpr}) loss,
 
 
-Note that the binary dot produt approach generalizes beyond simple factorization models, and can be applied as a component of any model whose final scoring step involves a dot product between user and item representations. In particular, models using recurrent (like Session-based Recommendations with Recurrent Neural Networks) or convolutional (Images Don’t Lie: Transferring Deep Visual Semantic
-Features to Large-Scale Multimodal Learning to Rank) item or user representations can easily be augmented to use binary dot products in the final ranking stages.
+Note that the binary dot produt approach generalizes beyond simple factorization models, and can be applied as a component of any model whose final scoring step involves a dot product between user and item representations. In particular, models using recurrent \citep{hidasi2015session} or convolutional \citep{lynch2015images} item or user representations can easily be augmented to use binary dot products in the final ranking stages.
 
 
 The amount of computation required for recommendations, as well the memory used to store item and user representations, 
@@ -105,7 +104,7 @@ The code is compiled using GCC 5.4.0 for the AVX2-enabled Broadwell architecture
 
 
 
-%\bibliographystyle{abbrv}
-%\bibliography{main}
+\bibliographystyle{abbrv}
+\bibliography{bibliography}
 
 \end{document}
