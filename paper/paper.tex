@@ -32,6 +32,9 @@ To alleviate these constraints, we propose the use of binary item and user repre
 \subsection{Heuristics}
 \subsection{Approximate inner product search}
 \cite{shrivastava2014asymmetric} propose a solution fo efficient ranking of large result sets through approximate maximum inner product search (MIPS). They extend well-known \citep{indyk1998approximate} locality-sensitive hashing techniques to the MIPS setting through asymmtric transformations of the query and candidate vectors, and show their applicability to recommender systems.
+
+Our approach is complementary to approximate inner product search. Approximate MIPS proceeds in two stages: (1) identification of candidate result vectors through localicty-sensitive hashing, followed by (2) explicit scoring and sorting of the returned candidates. Replacing real-valued dot products by XNOR operations in the second stage will yield incremental performance gains over a real-valued MIPS approach.
+
 \cite{Shen_2015_ICCV} expand on this approach by learning asymmetric binary hash functions. The hash functions are trained to minimize the L2 norm between the inner product matrix of the original input vectors and their trained binary representations.
 \subsection{Quantization}
 
@@ -73,18 +76,33 @@ We use the approach developed by XNOR-Net to approximate latent-space dot produc
 \mathrm{sign}(\vec{u_i}) \cdot \mathrm{sign}(\vec{i_i}) \cdot \Vert\vec{u_i}\Vert_{l1} \cdot \Vert\vec{i_i}\Vert_{l1}
 \end{equation}
 
-\section{Implementation}
+
+
+\section{Experiments}
+To assess the accuracy-speed trade-offs enabled by the XNOR approach, we conduct an experiment on the Movielens 100K dataset \citep{harper2016movielens}. The dataset contains 100 thousand ratings from 943 users on 1682 movies. Despite its small size, the results on this dataset should be indicative of results that can be obtained on larger datasets, and its small size enables us to easily test hyperparameter configurations and estimate models with high latent dimensions.
+
+\subsection{Experimental setup}
+We randomly divide the dataset into a training, test, and validation set. We build real-valued and XOR models for between 32 and 4096 latent dimensions. For every latent dimensionality, we conduct a random search over the hyperparameter space, and pick optimal learning rates and minibatch sizes based on the test set. The final results are obtained from ranking interactions from the validation set.
+
+Benchmark results are measured on an Intel Xeon E5-2686v4 CPU.
+
+\subsection{Implementation}
 The model is implemented in PyTorch and trained using the nVidia K40 GPUs. During training, the embedding parameters are stored as floats. Similarly, the XNOR dot product is carried out using floats in $\{1, -1\}$. The minibatch size and number of training epochs are treated as model hyperparameters. All models are trained using the Adam training rate schedule. 
 
 The prediction code runs on the CPU and is implemented using Intel X86 AVX2 SIMD intrinsics. SIMD (Single Instruction Multiple Data) instructions allow the CPU to operate on multiple pieces of data in parallel, achieving significant speedups over the scalar version. We use explicit intrinsics rather than compiler autovectorization to ensure that neither the real-valued nor the binary prediction code is unfairly disadvantaged by the quality of compiler autovectorization. 
 
 The real-valued prediction code is implemented using 8-float wide fused multiply-add instructions (\texttt{\_mm256\_fmadd\_ps}).
 
-In the binary version, the 1-bit weights are packed into 32-bit integer buffers. The XNOR dot product is implemented using 8-integer wide XOR operations (256 binary weights are processed at a time), followed by a popcount instruction to count the number of on bits in the result. We use the X algorithm, as provided by the Y library, for implementing the bit counting. 
+In the binary version, the 1-bit weights are packed into 32-bit integer buffers. The XNOR dot product is implemented using 8-integer wide XOR operations (256 binary weights are processed at a time), followed by a popcount instruction to count the number of on bits in the result. We use the \texttt{libpopcnt}\footnote{\texttt{https://github.com/kimwalisch/libpopcnt}} \citep{mula2016faster} library for the bit counting operations.
 
 Both versions use 32-bit aligned input data to utilise aligned SIMD register load instructions. 
 
-The code is compiled using GCC X for the AVX2-enabled Skylake architecture. 
+The code is compiled using GCC 5.4.0 for the AVX2-enabled Broadwell architecture.
+
+\subsection{Results}
+
+
+
 
 
 %\bibliographystyle{abbrv}
