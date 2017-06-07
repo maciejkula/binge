@@ -1,6 +1,9 @@
-\title{Binary Latent Representations for Efficient Ranking}
-\author{Maciej Kula}
-\date{\today}
+\documentclass[sigconf]{acmart}
+
+\usepackage{booktabs}
+\usepackage{commath}
+
+%\usepackage{tabularx}
 
 % --- Symbols
 \newcommand\symUserSet{U}
@@ -12,12 +15,36 @@
 
 \newcommand\symUserInteractionSet{S}
 
-\documentclass[sigconf]{acmart}
+\DeclareMathOperator{\sign}{sign}
+\renewcommand\vec{\mathbf}
+
 \begin{document}
+
+\title{Binary Latent Representations for Efficient Ranking}
+\author{Maciej Kula}
+\date{\today}
+
 
 
 \begin{abstract}
-  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+Multifrequency media access control has been well understood in
+general wireless ad hoc networks, while in wireless sensor networks,
+researchers still focus on single frequency solutions. In wireless
+sensor networks, each device is typically equipped with a single
+radio transceiver and applications adopt much smaller packet sizes
+compared to those in general wireless ad hoc networks. Hence, the
+multifrequency MAC protocols proposed for general wireless ad hoc
+networks are not suitable for wireless sensor network applications,
+which we further demonstrate through our simulation experiments. In
+this article, we propose MMSN, which takes advantage of
+multifrequency availability while, at the same time, takes into
+consideration the restrictions of wireless sensor networks. Through
+extensive experiments, MMSN exhibits the prominent ability to utilize
+parallel transmissions among neighboring nodes. When multiple physical
+frequencies are available, it also achieves increased energy
+efficiency, demonstrating the ability to work against radio
+interference and the tolerance to a wide range of measured time
+synchronization errors.
 \end{abstract}
 
 \maketitle
@@ -26,54 +53,50 @@
 
 Industry ranking and recommendation systems need to scale to tens or hundreds of millions of items and users. Ranking latency (in on-line settings) and compute and storage costs (in pre-compute settings) place significant contraints on the design of the resulting system.
 
-To alleviate these constraints, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \cite{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable accuracy to standard learning-to-rank approaches while being several times faster to score and requiring a fraction of the memory. In our MovieLens 100k experiments, our binary representations are within 1\% of the accuracy of the real-valued model, but are over 2 times faster to score and take 50\% of the memory.
+To alleviate these constraints, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable accuracy to standard learning-to-rank approaches while being several times faster to score and requiring a fraction of the memory. In our MovieLens 100k experiments, our binary representations are within 1\% of the accuracy of the real-valued model, but are over 2 times faster to score and take 50\% of the memory.
 
 \section{Related work}
-\subsection{Heuristics}
-\subsection{Approximate inner product search}
-\cite{shrivastava2014asymmetric} propose a solution fo efficient ranking of large result sets through approximate maximum inner product search (MIPS). They extend well-known \citep{indyk1998approximate} locality-sensitive hashing techniques to the MIPS setting through asymmtric transformations of the query and candidate vectors, and show their applicability to recommender systems.
+\citet{shrivastava2014asymmetric} propose a solution fo efficient ranking of large result sets through approximate maximum inner product search (MIPS). They extend well-known \citep{indyk1998approximate} locality-sensitive hashing techniques to the MIPS setting through asymmtric transformations of the query and candidate vectors, and show their applicability to recommender systems.
 
 Our approach is complementary to approximate inner product search. Approximate MIPS proceeds in two stages: (1) identification of candidate result vectors through localicty-sensitive hashing, followed by (2) explicit scoring and sorting of the returned candidates. Replacing real-valued dot products by XNOR operations in the second stage will yield incremental performance gains over a real-valued MIPS approach.
 
-\cite{Shen_2015_ICCV} expand on this approach by learning asymmetric binary hash functions. The hash functions are trained to minimize the L2 norm between the inner product matrix of the original input vectors and their trained binary representations.
-\subsection{Quantization}
-
+\citet{Shen_2015_ICCV} expand on this approach by learning asymmetric binary hash functions. The hash functions are trained to minimize the L2 norm between the inner product matrix of the original input vectors and the inner product matrix of their binary representations. As a post-processing technique, it is a applicable to a wide range of problems. However, because the binary representations are obtained as a separate step, this approach may not be able to exploit the benefits in training a binary representation approach end-to-end.
 
 \section{Our approach}
-\cite{rastegari2016xnor} introduce XNOR-Networks, an approach that combines 1-bit quantization of fully-connected and convolutional layers with representing dot products through scaled XNOR and bitcounting operations.
+\citet{rastegari2016xnor} introduce XNOR-Networks, an approach that combines 1-bit quantization of fully-connected and convolutional layers with representing dot products through scaled XNOR and bitcounting operations.
 
 We adapt their approach to the recommendation task by learning binary versions of user and item vectors within a learning-to-rank factorization model.
 
 Formally, let $\symUserSet$ be the set of users, and $\symItemSet$ be the set of items. Each user interacts with a number of items $\symUserInteractionSet_i^+$; the set of all remaining items is denoted by $\symUserInteractionSet^-$.
 
-In a traditional real-valued model, the prediction $r_{ui}$ for any user-item interaction pair $(u, i) \in \symUserSet \times \symItemSet$ would be given by
+In a traditional real-valued latent factor model, the prediction $r_{ui}$ for any user-item interaction pair $(u, i) \in \symUserSet \times \symItemSet$ is given by
 \begin{equation}
-r_{ui} = \sigma(\vec{u_i}) \cdot \vec{i_i} + b_i + b_u)
+r_{ui} = \sigma(\vec{u}_i \cdot \vec{i}_i + b_i + b_u)
 \end{equation}
-where $\sigma$ denotes the sigmoid function, $\vec{u_i}$ the user and $\vec{i_i}$ the item latent vector.
+where $\sigma$ denotes the sigmoid function, $\vec{u}_i$ the user and $\vec{i}_i$ the item latent vectors, and $b_u$ and $b_i$ the user and item biases.
 
-In the binary representation model the above is approximated by
+\citet{rastegari2016xnor} show that the dot product of two real-valued vectors can be approximated in the binary domain by (1) binarizing the input vectors using the sign function (so that the results lie in $\{1, -1\}$), (2) taking their dot product, and (3) scaling the result by the average magnitude of the vectors' elements:
 \begin{equation}
-\mathrm{sign}(\vec{u_i}) \cdot \mathrm{sign}(\vec{i_i}) \cdot \Vert\vec{u_i}\Vert_{l1} \cdot \Vert\vec{i_i}\Vert_{l1}
+\vec{u}_i \cdot \vec{i}_i \approx \sign(\vec{u}_i) \cdot \sign(\vec{i}_i) \cdot \sum_k\abs{u_{ik}} \cdot \sum_k\abs{i_{ik}}
+\end{equation}
+
+Applying this to the latent-factor model, the prediction for a user-item pair is given by
+\begin{equation}
+r_{ui} = \sigma\left(\sign(\vec{u}_i) \cdot \sign(\vec{i}_i) \cdot \sum_k\abs{u_{ik}} \cdot \sum_k\abs{i_{ik}} + b_i + b_u\right)
 \end{equation}
 
 % explain the derivation
 
-We train the model using the Bayesian Personalised Ranking (BPR, \cite{rendle2009bpr}) loss,
+We train the model using the Bayesian Personalised Ranking (BPR, \citet{rendle2009bpr}) loss,
 
 
 Note that the binary dot produt approach generalizes beyond simple factorization models, and can be applied as a component of any model whose final scoring step involves a dot product between user and item representations. In particular, models using recurrent \citep{hidasi2015session} or convolutional \citep{lynch2015images} item or user representations can easily be augmented to use binary dot products in the final ranking stages.
-
 
 The amount of computation required for recommendations, as well the memory used to store item and user representations, 
 
  imposes significant constraints on the design of the ranking system. In on-line recommendations, latency constraints force the use of heuristics 
 
 
-We use the approach developed by XNOR-Net to approximate latent-space dot products through binary operations. In this approach, we approximate the dot product between the user vector $\vec{u_i}$ and the item vector $\vec{i_i}$ by
-\begin{equation}
-\mathrm{sign}(\vec{u_i}) \cdot \mathrm{sign}(\vec{i_i}) \cdot \Vert\vec{u_i}\Vert_{l1} \cdot \Vert\vec{i_i}\Vert_{l1}
-\end{equation}
 
 
 
@@ -83,7 +106,7 @@ To assess the accuracy-speed trade-offs enabled by the XNOR approach, we conduct
 \subsection{Experimental setup}
 We randomly divide the dataset into a training, test, and validation set. We build real-valued and XOR models for between 32 and 4096 latent dimensions. For every latent dimensionality, we conduct a random search over the hyperparameter space, and pick optimal learning rates and minibatch sizes based on the test set. The final results are obtained from ranking interactions from the validation set.
 
-Benchmark results are measured on an Intel Xeon E5-2686v4 CPU.
+Benchmark results are measured on an Intel Xeon E5-2686v4 CPU by running a 100 repetitions of scoring 100,000 items and averaging the results.
 
 \subsection{Implementation}
 The model is implemented in PyTorch and trained using the nVidia K40 GPUs. During training, the embedding parameters are stored as floats. Similarly, the XNOR dot product is carried out using floats in $\{1, -1\}$. The minibatch size and number of training epochs are treated as model hyperparameters. All models are trained using the Adam training rate schedule. 
@@ -92,19 +115,32 @@ The prediction code runs on the CPU and is implemented using Intel X86 AVX2 SIMD
 
 The real-valued prediction code is implemented using 8-float wide fused multiply-add instructions (\texttt{\_mm256\_fmadd\_ps}).
 
-In the binary version, the 1-bit weights are packed into 32-bit integer buffers. The XNOR dot product is implemented using 8-integer wide XOR operations (256 binary weights are processed at a time), followed by a popcount instruction to count the number of on bits in the result. We use the \texttt{libpopcnt}\footnote{\texttt{https://github.com/kimwalisch/libpopcnt}} \citep{mula2016faster} library for the bit counting operations.
+In the binary version, the 1-bit weights are packed into 32-bit integer buffers. The XNOR dot product is implemented using 8-integer wide XOR operations (256 binary weights are processed at a time), followed by a popcount instruction to count the number of on bits in the result. We use the \texttt{libpopcnt} \citep{mula2016faster} library for the bit counting operations.
 
 Both versions use 32-bit aligned input data to utilise aligned SIMD register load instructions. 
 
-The code is compiled using GCC 5.4.0 for the AVX2-enabled Broadwell architecture.
+The code is compiled using GCC 4.8.4 for the AVX2-enabled Broadwell architecture.
 
 \subsection{Results}
+\begin{table*}
+\centering
+\begin{tabular}{rrrrrrrr}
+\toprule
+Dimension &   MRR & Binary MRR & MRR ratio &   PPMS & Binary PPMS & PPMS ratio & Memory use ratio \\
+\midrule
+       32 & 0.096 &      0.088 &     0.919 & 89,299 &     245,644 &      2.751 &            0.091 \\
+       64 & 0.098 &      0.096 &     0.973 & 47,565 &     209,486 &      4.404 &            0.062 \\
+      128 & 0.108 &      0.091 &     0.843 & 20,502 &     156,404 &      7.629 &            0.047 \\
+      256 & 0.109 &      0.097 &     0.884 & 10,631 &     166,500 &     15.661 &            0.039 \\
+      512 & 0.112 &      0.105 &     0.938 &   5391 &     110,418 &     20.479 &            0.035 \\
+     1024 & 0.114 &      0.102 &     0.897 &   2689 &      69,349 &     25.786 &            0.033 \\
+     2048 & 0.111 &      0.109 &     0.984 &   1352 &      34,826 &     25.745 &            0.032 \\
+     4096 & 0.111 &      0.107 &     0.961 &    666 &      15,907 &     23.856 &            0.032 \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-
-
-
-
-\bibliographystyle{abbrv}
 \bibliography{bibliography}
+\bibliographystyle{ACM-Reference-Format}
 
 \end{document}
