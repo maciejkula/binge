@@ -3,6 +3,7 @@
 \usepackage{booktabs}
 \usepackage{commath}
 
+
 %\usepackage{tabularx}
 
 % --- Symbols
@@ -65,40 +66,57 @@ Our approach is complementary to approximate inner product search. Approximate M
 \section{Our approach}
 \citet{rastegari2016xnor} introduce XNOR-Networks, an approach that combines 1-bit quantization of fully-connected and convolutional layers with representing dot products through scaled XNOR and bitcounting operations.
 
-We adapt their approach to the recommendation task by learning binary versions of user and item vectors within a learning-to-rank factorization model.
+We adapt their approach to the recommendation task by learning binary versions of user and item vectors within a learning-to-rank factorization model. This allows us to use binary instead of floating point operations for computing recommendation rankings, which has significant speed and memory use advantages. In a real-valued $n$-dimensional factorization model, item and user representations take $4n$ bytes of memory, and computing a single prediction takes $2n$ floating point operations. In an equivalent binary model, $\frac{3}{32}n$ binary operations are required for each prediction (XOR, negation, and bitcounting), and the representations take $\frac{1}{8}n$ bytes of memory. Naive calculations suggest that, for the same latent dimensionality, a binary model would be over 20 times faster to score, and take less then 5\% of memory to store its representations.
 
-Formally, let $\symUserSet$ be the set of users, and $\symItemSet$ be the set of items. Each user interacts with a number of items $\symUserInteractionSet_i^+$; the set of all remaining items is denoted by $\symUserInteractionSet^-$.
+Naturally, using binary instead of real-valued representations entails a loss of representational power, and the resulting models can be expected to be less accurate. Nevertheless, binary models may still be very useful in a production system, for two reasons. Firstly, they may offer the system designer a more favourable trade-off between speed and accuracy than simply changing the number of latent dimensions in a real-valued model. If latency is the binding constraint, switching to a binary model may offer better or comparable speed with better ranking performance. If accuracy is the priority, a binary model may offer equivalent ranking performance while being faster to score. This suspicion is borne out in out experiments. Secondly, many production systems resort to heavy use of heuristics when selecting candidates to be scored by their ranking systems (as scoring all candidates would be infeasible). To the extent that these heuristics are suboptimal, replacing them with a binary representation model would improve the overall accuracy of the system.
+
+To quantify the tradeoffs involved, we construct and fit both a real-valued and a binary version of simple implicit learning-to-rank factorization model. We introduce the notation and the models below.
+
+Let $\symUserSet$ be the set of users, and $\symItemSet$ be the set of items. Each user interacts with a number of items $\symUserInteractionSet_i^+$; the set of all remaining items is denoted by $\symUserInteractionSet^-$.
 
 In a traditional real-valued latent factor model, the prediction $r_{ui}$ for any user-item interaction pair $(u, i) \in \symUserSet \times \symItemSet$ is given by
 \begin{equation}
-r_{ui} = \sigma(\vec{u}_i \cdot \vec{i}_i + b_i + b_u)
+r_{ui} = \vec{u}_i \cdot \vec{i}_i + b_i + b_u
 \end{equation}
-where $\sigma$ denotes the sigmoid function, $\vec{u}_i$ the user and $\vec{i}_i$ the item latent vectors, and $b_u$ and $b_i$ the user and item biases.
+where $\vec{u}_i$ denotes the user and $\vec{i}_i$ the item $n$-dimensional latent vectors, and $b_u$ and $b_i$ the user and item biases.
 
-\citet{rastegari2016xnor} show that the dot product of two real-valued vectors can be approximated in the binary domain by (1) binarizing the input vectors using the sign function (so that the results lie in $\{1, -1\}$), (2) taking their dot product, and (3) scaling the result by the average magnitude of the vectors' elements:
+\citet{rastegari2016xnor} show that the dot product of two real-valued vectors can be approximated in the binary domain by (1) binarizing the input vectors using the sign function (so that the results lie in $\{1, -1\}$), (2) taking their dot product, and (3) scaling the result by the average magnitude of the vectors' elements. Letting
 \begin{equation}
-\vec{u}_i \cdot \vec{i}_i \approx \sign(\vec{u}_i) \cdot \sign(\vec{i}_i) \cdot \sum_k\abs{u_{ik}} \cdot \sum_k\abs{i_{ik}}
+\alpha = \frac{1}{n}\norm{\vec{i}_{i}}_{\ell1}
 \end{equation}
-
+and
+\begin{equation}
+\beta = \frac{1}{n}\norm{\vec{u}_{i}}_{\ell1}
+\end{equation}
+represent the scaling factors, the approximation is given by
+\newcommand\binaryApproximation{ \alpha \beta\left(\sign(\vec{u}_i) \cdot \sign(\vec{i}_i)\right)}
+\begin{equation}
+\vec{u}_i \cdot \vec{i}_i \approx \binaryApproximation
+\end{equation}
 Applying this to the latent-factor model, the prediction for a user-item pair is given by
 \begin{equation}
-r_{ui} = \sigma\left(\sign(\vec{u}_i) \cdot \sign(\vec{i}_i) \cdot \sum_k\abs{u_{ik}} \cdot \sum_k\abs{i_{ik}} + b_i + b_u\right)
+r_{ui} = \sigma\left(\binaryApproximation + b_i + b_u\right)
 \end{equation}
+The model is trained using backpropagation. To facilitate the training of the binary model, we need a smooth approximation to the derivative of the sign function. Following \citet{courbariaux2016binarized}, we define
+\begin{equation}
+\frac{d\sign}{dw} = w1_{\abs{w} \leq 1}.
+\end{equation}
+we use two loss functions to train the model:
+\begin{itemize}
+\item Bayesian personalised ranking (BPR, \citet{rendle2009bpr})
+\item adaptive sampling maximum margin loss, following \citet{weston2011wsabie}.
+\end{itemize}
+For both loss functions, for any known positive user-item interaction pair $(u, i)$, we sample an implicit negative item $j \in \symUserInteractionSet^-$. For BPR, the loss for any such triplet is given by
+\begin{equation}
+1 - \sigma\left(r_{ui} - r_{uj}\right).
+\end{equation}
+The adaptive sampling loss is given by
+\begin{equation}
+\abs{1 - r_{ui} + r_{uj}}_{+}.
+\end{equation}
+For any $(u, i)$ pair, if the sampled negative item $j$ results in a zero loss (that is, the desired pairwise ordering is not violated), a new negative item is sampled, up to a total of $k$ attempts. This leads the model to perform more gradient updates in areas where its ranking performance is poorest.
 
-% explain the derivation
-
-We train the model using the Bayesian Personalised Ranking (BPR, \citet{rendle2009bpr}) loss,
-
-
-Note that the binary dot produt approach generalizes beyond simple factorization models, and can be applied as a component of any model whose final scoring step involves a dot product between user and item representations. In particular, models using recurrent \citep{hidasi2015session} or convolutional \citep{lynch2015images} item or user representations can easily be augmented to use binary dot products in the final ranking stages.
-
-The amount of computation required for recommendations, as well the memory used to store item and user representations, 
-
- imposes significant constraints on the design of the ranking system. In on-line recommendations, latency constraints force the use of heuristics 
-
-
-
-
+For the purposes of this paper, we focus on a simple bilinear collaborative filtering model, and do not use any external metadata information or model the sequential nature of the data. However, the binary dot produt approach generalizes beyond simple factorization models, and can be applied as a component of any model whose final scoring step involves a dot product between user and item representations. In particular, models using recurrent \citep{hidasi2015session} or convolutional \citep{lynch2015images} item or user representations can easily be augmented to use binary dot products in the final ranking stages. Assuming item representations can be computed in advance, even very complicated models can enjoy the efficiency advantages of using binary representations.
 
 \section{Experiments}
 To assess the accuracy-speed trade-offs enabled by the XNOR approach, we conduct an experiment on the Movielens 100K dataset \citep{harper2016movielens}. The dataset contains 100 thousand ratings from 943 users on 1682 movies. Despite its small size, the results on this dataset should be indicative of results that can be obtained on larger datasets, and its small size enables us to easily test hyperparameter configurations and estimate models with high latent dimensions.
@@ -122,6 +140,7 @@ Both versions use 32-bit aligned input data to utilise aligned SIMD register loa
 The code is compiled using GCC 4.8.4 for the AVX2-enabled Broadwell architecture.
 
 \subsection{Results}
+\label{sec:results}
 \begin{table*}
 \centering
 \begin{tabular}{rrrrrrrr}
