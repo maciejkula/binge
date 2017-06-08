@@ -3,7 +3,6 @@
 \usepackage{booktabs}
 \usepackage{commath}
 
-
 %\usepackage{tabularx}
 
 % --- Symbols
@@ -64,11 +63,12 @@ Our approach is complementary to approximate inner product search. Approximate M
 \citet{Shen_2015_ICCV} expand on this approach by learning asymmetric binary hash functions. The hash functions are trained to minimize the L2 norm between the inner product matrix of the original input vectors and the inner product matrix of their binary representations. As a post-processing technique, it is a applicable to a wide range of problems. However, because the binary representations are obtained as a separate step, this approach may not be able to exploit the benefits in training a binary representation approach end-to-end.
 
 \section{Our approach}
+\label{sec:approach}
 \citet{rastegari2016xnor} introduce XNOR-Networks, an approach that combines 1-bit quantization of fully-connected and convolutional layers with representing dot products through scaled XNOR and bitcounting operations.
 
 We adapt their approach to the recommendation task by learning binary versions of user and item vectors within a learning-to-rank factorization model. This allows us to use binary instead of floating point operations for computing recommendation rankings, which has significant speed and memory use advantages. In a real-valued $n$-dimensional factorization model, item and user representations take $4n$ bytes of memory, and computing a single prediction takes $2n$ floating point operations. In an equivalent binary model, $\frac{3}{32}n$ binary operations are required for each prediction (XOR, negation, and bitcounting), and the representations take $\frac{1}{8}n$ bytes of memory. Naive calculations suggest that, for the same latent dimensionality, a binary model would be over 20 times faster to score, and take less then 5\% of memory to store its representations.
 
-Naturally, using binary instead of real-valued representations entails a loss of representational power, and the resulting models can be expected to be less accurate. Nevertheless, binary models may still be very useful in a production system, for two reasons. Firstly, they may offer the system designer a more favourable trade-off between speed and accuracy than simply changing the number of latent dimensions in a real-valued model. If latency is the binding constraint, switching to a binary model may offer better or comparable speed with better ranking performance. If accuracy is the priority, a binary model may offer equivalent ranking performance while being faster to score. This suspicion is borne out in out experiments. Secondly, many production systems resort to heavy use of heuristics when selecting candidates to be scored by their ranking systems (as scoring all candidates would be infeasible). To the extent that these heuristics are suboptimal, replacing them with a binary representation model would improve the overall accuracy of the system.
+Naturally, using binary instead of real-valued representations entails a loss of representational power, and the resulting models can be expected to be less accurate. Nevertheless, binary models may still be very useful in a production system, for two reasons. Firstly, they may offer the system designer a more favourable trade-off between speed and accuracy than simply changing the number of latent dimensions in a real-valued model. If latency is the binding constraint, switching to a binary model may offer better or comparable speed with better ranking performance. If accuracy is the priority, a binary model may offer equivalent ranking performance while being faster to score. This suspicion is borne out in our experiments. Secondly, many production systems resort to heavy use of heuristics when selecting candidates to be scored by their ranking systems (as scoring all candidates would be infeasible). To the extent that these heuristics are suboptimal, replacing them with a binary representation model would improve the overall accuracy of the system.
 
 To quantify the tradeoffs involved, we construct and fit both a real-valued and a binary version of simple implicit learning-to-rank factorization model. We introduce the notation and the models below.
 
@@ -95,8 +95,10 @@ represent the scaling factors, the approximation is given by
 \end{equation}
 Applying this to the latent-factor model, the prediction for a user-item pair is given by
 \begin{equation}
-r_{ui} = \sigma\left(\binaryApproximation + b_i + b_u\right)
+r_{ui} = \binaryApproximation + b_i + b_u
 \end{equation}
+Note that the scaling factors $\alpha$ and $\beta$ need to be stored (in addition to the latent representations and biases) to compute predictions in the binary model.
+
 The model is trained using backpropagation. To facilitate the training of the binary model, we need a smooth approximation to the derivative of the sign function. Following \citet{courbariaux2016binarized}, we define
 \begin{equation}
 \frac{d\sign}{dw} = w1_{\abs{w} \leq 1}.
@@ -108,8 +110,9 @@ we use two loss functions to train the model:
 \end{itemize}
 For both loss functions, for any known positive user-item interaction pair $(u, i)$, we sample an implicit negative item $j \in \symUserInteractionSet^-$. For BPR, the loss for any such triplet is given by
 \begin{equation}
-1 - \sigma\left(r_{ui} - r_{uj}\right).
+1 - \sigma\left(r_{ui} - r_{uj}\right),
 \end{equation}
+where $\sigma$ denotes the sigmoid function.
 The adaptive sampling loss is given by
 \begin{equation}
 \abs{1 - r_{ui} + r_{uj}}_{+}.
@@ -139,9 +142,13 @@ Both versions use 32-bit aligned input data to utilise aligned SIMD register loa
 
 The code is compiled using GCC 4.8.4 for the AVX2-enabled Broadwell architecture.
 
+The source code for the implementation is available on Github\footnote{\url{https://github.com/maciejkula/binge}}.
+
 \subsection{Results}
 \label{sec:results}
-\begin{table*}
+\begin{table*}[h]
+\caption{Movielens 100K results}
+\label{tb:results}
 \centering
 \begin{tabular}{rrrrrrrr}
 \toprule
@@ -158,6 +165,18 @@ Dimension &   MRR & Binary MRR & MRR ratio &   PPMS & Binary PPMS & PPMS ratio &
 \bottomrule
 \end{tabular}
 \end{table*}
+Table \ref{tb:results} summarises the results of the Movielens 100K experiment. Each row presents the best MRR (mean reciprocal rank) results for both real-valued and binary models of a given dimensionality. MRR ratio denotes the fraction of the real-valued MRR the binary model achieves for that dimensionality; PPMS (predictions per millisecond) ratio denotes how many more predictions the binary model can compute per millisecond.
+
+Results on scoring speed and memory use broadly confirm the naive calculations from section \ref{sec:approach}, converging to over 20 times faster scoring at around 3\% of memory as latent dimensionality increases.
+As expected, for the same dimensionality a binary model achieves lower ranking accuracy. On average, the accuracy loss is around 8\%, varying between 2\% and 16\%.
+Nevertheless, the binary model's speed enables some very favourable tradeoffs
+
+When optimizing for MRR in both settings (at 1024 dimensions for the continuous and 2048 for the binary case), the XNOR representation achieves 96\% of the maximum MRR of the float representations at 13 times the query throughput and using only 6\% of the memory.
+
+When optimizing for query throughput at 32 dimensions for the continuous case, the XNOR representation (at 512 dimensions) can improve the ranking performance by achieving 110\% of the continuous MRR while being slightly faster at 1.2 times the query throughput, and using 55\% of the memory.
+
+
+
 
 \bibliography{bibliography}
 \bibliographystyle{ACM-Reference-Format}
