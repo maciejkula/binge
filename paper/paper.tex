@@ -27,24 +27,7 @@
 
 
 \begin{abstract}
-Multifrequency media access control has been well understood in
-general wireless ad hoc networks, while in wireless sensor networks,
-researchers still focus on single frequency solutions. In wireless
-sensor networks, each device is typically equipped with a single
-radio transceiver and applications adopt much smaller packet sizes
-compared to those in general wireless ad hoc networks. Hence, the
-multifrequency MAC protocols proposed for general wireless ad hoc
-networks are not suitable for wireless sensor network applications,
-which we further demonstrate through our simulation experiments. In
-this article, we propose MMSN, which takes advantage of
-multifrequency availability while, at the same time, takes into
-consideration the restrictions of wireless sensor networks. Through
-extensive experiments, MMSN exhibits the prominent ability to utilize
-parallel transmissions among neighboring nodes. When multiple physical
-frequencies are available, it also achieves increased energy
-efficiency, demonstrating the ability to work against radio
-interference and the tolerance to a wide range of measured time
-synchronization errors.
+Large-scale recommender systems often face severe latency and storage constraints. To relax those, we train recommendation models that use binary rather than real-valued user and item representations, and show that they enable a range of attractive speed-accuracy trade-offs. In particular, we demonstrate 13 times faster prediction at the expense of a modest 4\% loss in ranking accuracy on the Movielens 100K dataset.
 \end{abstract}
 
 \maketitle
@@ -103,9 +86,10 @@ The model is trained using backpropagation. To facilitate the training of the bi
 \begin{equation}
 \frac{d\sign}{dw} = w1_{\abs{w} \leq 1}.
 \end{equation}
-we use two loss functions to train the model:
+
+We use two loss functions to train the model:
 \begin{itemize}
-\item Bayesian personalised ranking (BPR, \citet{rendle2009bpr})
+\item Bayesian personalised ranking (BPR, \citet{rendle2009bpr}), and
 \item adaptive sampling maximum margin loss, following \citet{weston2011wsabie}.
 \end{itemize}
 For both loss functions, for any known positive user-item interaction pair $(u, i)$, we sample an implicit negative item $j \in \symUserInteractionSet^-$. For BPR, the loss for any such triplet is given by
