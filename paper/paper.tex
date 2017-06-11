@@ -1,4 +1,4 @@
-\documentclass[sigconf]{acmart}
+\documentclass[sigchi]{acmart}
 
 \usepackage{booktabs}
 \usepackage{commath}
@@ -36,9 +36,9 @@ Large-scale recommender systems often face severe latency and storage constraint
 \section{Introduction}
 Industry ranking and recommendation systems need to scale to tens or hundreds of millions of items and users. Ranking latency (in on-line settings) and compute and storage costs (in pre-compute settings) place significant contraints on the design of the resulting system.
 
-In an on-line setting, where recommendation latency directly impacts the user experience, system designers have to work within a strict latency budget. Respecting that budget often means trading off model accuracy for speed, either via smaller and less expressive models (for example, with lower-dimensionality representations) or through aggressive use of heuristics to exclude large classes of candidate items from scoring.
+In an on-line setting, where recommendation latency directly impacts the user experience, system designers have to work within a strict latency budget. Respecting that budget often means trading off model accuracy for speed, either via smaller and less expressive models (for example, with lower-dimensionality representations) or through aggressive use of heuristics to exclude large classes of candidate items from scoring. For example, approximate nearest neighbour search techniques are used at Youtube \citep{covington2016deep} to reduce the number of candidate videos that need to be scored for each user.
 
-The challenge of low-latency scoring leads many systems to rely on a pre-compute system, where recommendations are computed in advance and stored for serving at a later time. The primary disadvantage of such a system is its inability to react dynamically to user actions (such as new interactions that allow the recommendations to be refined) and recommendation context (location, time of day or year). Additionaly, while a pre-compute solution removes model prediction from the critical path, it still requires substantial investment in compute and storage resources to calculate and cache the predictions of the model.
+The challenge of low-latency scoring leads many systems to rely on a pre-compute system, where recommendations are computed in advance and stored for serving at a later time. The primary disadvantage of such a system is its inability to react dynamically to user actions (such as new interactions that allow the recommendations to be refined) and recommendation context (location, time of day or year). This leads to often complex architecture that mix fairly simple on-line models, computationally expensive offline models, and intermediate complexity near-line models where model updating is important \citep{amatriain2013big}. Additionaly, while a pre-compute solution removes model prediction from the critical path, it still requires substantial investment in compute and storage resources to calculate and cache the predictions of the model.
 
 To alleviate these constraints, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable ranking accuracy to standard learning-to-rank approaches while being several times faster to score and requiring a fraction of the memory. In MovieLens 100k experiments, our binary representations are within 4\% of the accuracy of the real-valued model, but are over 13 times faster to score and take 55\% of the memory.
 
@@ -110,31 +110,7 @@ For any $(u, i)$ pair, if the sampled negative item $j$ results in a zero loss (
 For the purposes of this paper, we focus on a simple bilinear collaborative filtering model, and do not use any external metadata information or model the sequential nature of the data. However, the binary dot produt approach generalizes beyond simple factorization models, and can be applied as a component of any model whose final scoring step involves a dot product between user and item representations. In particular, models using recurrent \citep{hidasi2015session} or convolutional \citep{lynch2015images} item or user representations can easily be augmented to use binary dot products in the final ranking stages. Assuming item representations can be computed in advance, even very complicated models can enjoy the efficiency advantages of using binary representations.
 
 \section{Experiments}
-To assess the accuracy-speed trade-offs enabled by the XNOR approach, we conduct an experiment on the Movielens 100K dataset \citep{harper2016movielens}. The dataset contains 100 thousand ratings from 943 users on 1682 movies. Despite its small size, the results on this dataset should be indicative of results that can be obtained on larger datasets, and its small size enables us to easily test hyperparameter configurations and estimate models with high latent dimensions.
-
-\subsection{Experimental setup}
-We randomly divide the dataset into a training, test, and validation set. We build real-valued and XOR models for between 32 and 4096 latent dimensions. For every latent dimensionality, we conduct a random search over the hyperparameter space, and pick optimal learning rates and minibatch sizes based on the test set. The final results are obtained from ranking interactions from the validation set.
-
-Benchmark results are measured on an Intel Xeon E5-2686v4 CPU by running a 100 repetitions of scoring 100,000 items and averaging the results.
-
-\subsection{Implementation}
-The model is implemented in PyTorch and trained using the nVidia K40 GPUs. During training, the embedding parameters are stored as floats. Similarly, the XNOR dot product is carried out using floats in $\{1, -1\}$. The minibatch size and number of training epochs are treated as model hyperparameters. All models are trained using the Adam training rate schedule. 
-
-The prediction code runs on the CPU and is implemented using Intel X86 AVX2 SIMD intrinsics. SIMD (Single Instruction Multiple Data) instructions allow the CPU to operate on multiple pieces of data in parallel, achieving significant speedups over the scalar version. We use explicit intrinsics rather than compiler autovectorization to ensure that neither the real-valued nor the binary prediction code is unfairly disadvantaged by the quality of compiler autovectorization. 
-
-The real-valued prediction code is implemented using 8-float wide fused multiply-add instructions (\texttt{\_mm256\_fmadd\_ps}).
-
-In the binary version, the 1-bit weights are packed into 32-bit integer buffers. The XNOR dot product is implemented using 8-integer wide XOR operations (256 binary weights are processed at a time), followed by a popcount instruction to count the number of on bits in the result. We use the \texttt{libpopcnt} \citep{mula2016faster} library for the bit counting operations.
-
-Both versions use 32-bit aligned input data to utilise aligned SIMD register load instructions. 
-
-The code is compiled using GCC 4.8.4 for the AVX2-enabled Broadwell architecture.
-
-The source code for the implementation is available on Github\footnote{\url{https://github.com/maciejkula/binge}}.
-
-\subsection{Results}
-\label{sec:results}
-\begin{table*}[h]
+\begin{table*}[htbp]
 \caption{Movielens 100K results}
 \label{tb:results}
 \centering
@@ -153,6 +129,28 @@ Dimension &   MRR & Binary MRR & MRR ratio &   PPMS & Binary PPMS & PPMS ratio &
 \bottomrule
 \end{tabular}
 \end{table*}
+To assess the accuracy-speed trade-offs enabled by the XNOR approach, we conduct an experiment on the Movielens 100K dataset \citep{harper2016movielens}. The dataset contains 100 thousand ratings from 943 users on 1682 movies. Despite its small size, the results on this dataset should be indicative of results that can be obtained on larger datasets, and its small size enables us to easily test hyperparameter configurations and estimate models with high latent dimensions.
+
+\subsection{Experimental setup}
+We randomly divide the dataset into a training, test, and validation set. In order to build a picture of the accuracy-speed trade-offs afforded by real-valued and binary latent models, we explicitly build models for between 32 and 4096 latent dimensions. For every latent dimensionality, we conduct a random search over the hyperparameter space, and pick optimal learning rates and minibatch sizes for each algorithm based on their performance on the test set. The final results are obtained from ranking interactions from the validation set. We use mean reciprocal rank (MRR) as a measure of ranking quality.
+
+Benchmark results are measured on an Intel Xeon E5-2686v4 CPU by running a 100 repetitions of scoring 100,000 items and averaging the results.
+
+\subsection{Implementation}
+The model is implemented in PyTorch and trained using the nVidia K40 GPUs. During training, the embedding parameters are stored as floats. Similarly, the XNOR dot product is carried out using floats in $\{1, -1\}$. The minibatch size and number of training epochs are treated as model hyperparameters. All models are trained using the Adam training rate schedule. 
+
+The prediction code runs on the CPU and is implemented using Intel X86 AVX2 SIMD intrinsics. SIMD (Single Instruction Multiple Data) instructions allow the CPU to operate on multiple pieces of data in parallel, achieving significant speedups over the scalar version. We use explicit intrinsics rather than compiler autovectorization to ensure that neither the real-valued nor the binary prediction code is unfairly disadvantaged by the quality of compiler autovectorization. 
+
+The real-valued prediction code is implemented using 8-float wide fused multiply-add instructions (\texttt{\_mm256\_fmadd\_ps}).
+
+In the binary version, the real-valued embedding parameters used in training are discarded, and the derived 1-bit weights are packed into 32-bit integer buffers. The XNOR dot product is implemented using 8-integer wide XOR operations (256 binary weights are processed at a time), followed by a popcount instruction to count the number of on bits in the result. We use the \texttt{libpopcnt} \citep{mula2016faster} library for the bit counting operations.
+
+Both versions use 32-bit aligned input data to utilise aligned SIMD register load instructions. The code is compiled using GCC 4.8.4 for the AVX2-enabled Broadwell architecture.
+
+The source code for the implementation is available on Github\footnote{\url{https://github.com/maciejkula/binge}}.
+
+\subsection{Results}
+\label{sec:results}
 Table \ref{tb:results} summarises the results of the Movielens 100K experiment. Each row presents the best MRR (mean reciprocal rank) results for both real-valued and binary models of a given dimensionality. MRR ratio denotes the fraction of the real-valued MRR the binary model achieves for that dimensionality; PPMS (predictions per millisecond) ratio denotes how many more predictions the binary model can compute per millisecond.
 
 Results on scoring speed and memory use broadly confirm the naive calculations from section \ref{sec:approach}, converging to over 20 times faster scoring at around 3\% of memory as latent dimensionality increases.
@@ -163,7 +161,8 @@ When optimizing for MRR in both settings (at 1024 dimensions for the continuous 
 
 When optimizing for query throughput at 32 dimensions for the continuous case, the XNOR representation (at 512 dimensions) can improve the ranking performance by achieving 110\% of the continuous MRR while being slightly faster at 1.2 times the query throughput, and using 55\% of the memory.
 
-
+\section{Conclusion}
+We show that binary user and item representations allow recommender system designers to exploit an attractive new set of speed-accuracy trade-offs. They are straightforward to estimate, and can easily be used in any existing model estimated using stochastic gradient descent.
 
 
 \bibliography{bibliography}
