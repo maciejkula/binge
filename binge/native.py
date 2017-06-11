@@ -6,6 +6,26 @@ from cffi import FFI
 import numpy as np
 
 
+def align(array, alignment=32):
+
+    if (array.ctypes.data % alignment) == 0:
+        return array
+
+    extra = alignment // array.itemsize
+    buf = np.empty(array.size + extra, dtype=array.dtype)
+    ofs = (-buf.ctypes.data % alignment) // array.itemsize
+
+    aligned = buf[ofs:ofs + array.size].reshape(array.shape)
+    np.copyto(aligned, array)
+
+    return aligned
+
+
+def _assert_aligned(array, alignment=32):
+
+    assert not array.ctypes.data % alignment
+
+
 class Extension:
 
     def __init__(self, lib):
@@ -23,6 +43,9 @@ class Extension:
                           user_bias,
                           item_biases,
                           out=None):
+
+        _assert_aligned(item_vectors)
+        _assert_aligned(user_vector)
 
         cast = self._cast
 
@@ -50,6 +73,9 @@ class Extension:
                          user_norm,
                          item_norms,
                          out=None):
+
+        _assert_aligned(item_vectors)
+        _assert_aligned(user_vector)
 
         cast = self._cast
 
@@ -87,8 +113,8 @@ def _build_module():
                        float* out,
                        intptr_t num_items,
                        intptr_t latent_dim);
-    void predict_xnor_256(float* user_vector,
-                      float* item_vectors,
+    void predict_xnor_256(int32_t* user_vector,
+                      int32_t* item_vectors,
                       float user_bias,
                       float* item_biases,
                       float user_norm,
@@ -113,5 +139,7 @@ def get_lib():
 
     if not libs:
         raise Exception('Compiled extension not found under {}'.format(path))
+    if len(libs) > 1:
+        raise Exception('More than one version of extension found: {}'.format(libs))
 
     return Extension(ffi.dlopen(libs[0]))

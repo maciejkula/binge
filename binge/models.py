@@ -10,7 +10,7 @@ import torch.optim as optim
 from torch.autograd import Variable, Function
 
 from binge.layers import ScaledEmbedding, ZeroEmbedding
-from binge.native import get_lib
+from binge.native import align, get_lib
 
 
 def _gpu(tensor, gpu=False):
@@ -118,7 +118,10 @@ def sign(x):
 
 class BilinearNet(nn.Module):
 
-    def __init__(self, num_users, num_items, embedding_dim,
+    def __init__(self,
+                 num_users,
+                 num_items,
+                 embedding_dim,
                  xnor=False,
                  sparse=False):
 
@@ -181,7 +184,8 @@ class FactorizationModel(object):
                  l2=0.0,
                  learning_rate=1e-3,
                  use_cuda=False,
-                 sparse=False):
+                 sparse=False,
+                 random_seed=None):
 
         assert loss in ('pointwise',
                         'bpr',
@@ -196,6 +200,7 @@ class FactorizationModel(object):
         self._use_cuda = use_cuda
         self._sparse = sparse
         self._xnor = xnor
+        self._random_state = np.random.RandomState(random_seed)
 
         self._num_users = None
         self._num_items = None
@@ -216,9 +221,9 @@ class FactorizationModel(object):
 
         negatives = Variable(
             _gpu(
-                torch.from_numpy(np.random.randint(0,
-                                                   self._num_items,
-                                                   len(users))),
+                torch.from_numpy(self._random_state.randint(0,
+                                                            self._num_items,
+                                                            len(users))),
                 self._use_cuda)
         )
 
@@ -231,9 +236,9 @@ class FactorizationModel(object):
 
         negatives = Variable(
             _gpu(
-                torch.from_numpy(np.random.randint(0,
-                                                   self._num_items,
-                                                   len(users))),
+                torch.from_numpy(self._random_state.randint(0,
+                                                            self._num_items,
+                                                            len(users))),
                 self._use_cuda)
         )
 
@@ -244,8 +249,8 @@ class FactorizationModel(object):
         negatives = Variable(
             _gpu(
                 torch.from_numpy(
-                    np.random.randint(0, self._num_items,
-                        (len(users), n_neg_candidates))),
+                    self._random_state.randint(0, self._num_items,
+                                               (len(users), n_neg_candidates))),
                 self._use_cuda)
         )
         negative_predictions = self._net(
@@ -267,7 +272,7 @@ class FactorizationModel(object):
         ratings = interactions.data
 
         shuffle_indices = np.arange(len(users))
-        np.random.shuffle(shuffle_indices)
+        self._random_state.shuffle(shuffle_indices)
 
         return (users[shuffle_indices].astype(np.int64),
                 items[shuffle_indices].astype(np.int64),
@@ -347,7 +352,7 @@ class FactorizationModel(object):
             if verbose:
                 print('Epoch {}: loss {}'.format(epoch_num, epoch_loss))
 
-    def predict(self, user_ids, item_ids):
+    def predict(self, user_ids, item_ids=None):
         """
         Compute the recommendation score for user-item pairs.
 
@@ -357,10 +362,14 @@ class FactorizationModel(object):
         user_ids: integer or np.int32 array of shape [n_pairs,]
              single user id or an array containing the user ids for the user-item pairs for which
              a prediction is to be computed
-        item_ids: np.int32 array of shape [n_pairs,]
+        item_ids: optional, np.int32 array of shape [n_pairs,]
              an array containing the item ids for the user-item pairs for which
-             a prediction is to be computed.
+             a prediction is to be computed. If not provided, scores for
+             all items will be computed.
         """
+
+        if item_ids is None:
+            item_ids = np.arange(self._num_items, dtype=np.int64)
 
         if isinstance(user_ids, int):
             user_id = user_ids
@@ -401,14 +410,19 @@ class Scorer:
                  item_vectors,
                  item_biases):
 
-        assert item_vectors.shape[1] % 8 == 0
-
-        self._user_vectors = user_vectors
-        self._user_biases = user_biases
-        self._item_vectors = item_vectors
-        self._item_biases = item_biases
+        self._user_vectors = align(user_vectors)
+        self._user_biases = align(user_biases)
+        self._item_vectors = align(item_vectors)
+        self._item_biases = align(item_biases)
 
         self._lib = get_lib()
+
+    def _parameters(self):
+
+        return (self._user_vectors,
+                self._item_vectors,
+                self._user_biases,
+                self._item_biases)
 
     def predict(self, user_id, item_ids=None):
 
@@ -416,7 +430,7 @@ class Scorer:
             item_ids = slice(0, None, None)
 
         return self._lib.predict_float_256(
-            self._user_vectors[user_id],
+            align(self._user_vectors[user_id]),
             self._item_vectors[item_ids],
             self._user_biases[user_id],
             self._item_biases[item_ids])
@@ -424,11 +438,17 @@ class Scorer:
     def _predict_bench(self, user_id, out):
 
         return self._lib.predict_float_256(
-            self._user_vectors[user_id],
+            align(self._user_vectors[user_id]),
             self._item_vectors,
             self._user_biases[user_id],
             self._item_biases,
             out)
+
+    def memory(self):
+
+        get_size = lambda x: x.itemsize * x.size
+
+        return sum(get_size(x) for x in self._parameters())
 
 
 class XNORScorer:
@@ -439,17 +459,26 @@ class XNORScorer:
                  item_vectors,
                  item_biases):
 
-        assert item_vectors.shape[1] % 8 == 0
+        assert item_vectors.shape[1] >= 32
 
-        self._user_norms = np.abs(user_vectors).mean(axis=1)
-        self._item_norms = np.abs(item_vectors).mean(axis=1)
+        self._user_norms = align(np.abs(user_vectors).mean(axis=1))
+        self._item_norms = align(np.abs(item_vectors).mean(axis=1))
 
-        self._user_vectors = binarize_array(user_vectors)
-        self._user_biases = user_biases
-        self._item_vectors = binarize_array(item_vectors)
-        self._item_biases = item_biases
+        self._user_vectors = align(binarize_array(user_vectors))
+        self._user_biases = align(user_biases)
+        self._item_vectors = align(binarize_array(item_vectors))
+        self._item_biases = align(item_biases)
 
         self._lib = get_lib()
+
+    def _parameters(self):
+
+        return (self._user_norms,
+                self._item_norms,
+                self._user_vectors,
+                self._item_vectors,
+                self._user_biases,
+                self._item_biases)
 
     def predict(self, user_id, item_ids=None):
 
@@ -457,7 +486,7 @@ class XNORScorer:
             item_ids = slice(0, None, None)
 
         return self._lib.predict_xnor_256(
-            self._user_vectors[user_id],
+            align(self._user_vectors[user_id]),
             self._item_vectors[item_ids],
             self._user_biases[user_id],
             self._item_biases[item_ids],
@@ -467,10 +496,16 @@ class XNORScorer:
     def _predict_bench(self, user_id, out):
 
         return self._lib.predict_xnor_256(
-            self._user_vectors[user_id],
+            align(self._user_vectors[user_id]),
             self._item_vectors,
             self._user_biases[user_id],
             self._item_biases,
             self._user_norms[user_id],
             self._item_norms,
             out)
+
+    def memory(self):
+
+        get_size = lambda x: x.itemsize * x.size
+
+        return sum(get_size(x) for x in self._parameters())
