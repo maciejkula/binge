@@ -72,21 +72,24 @@ def benchmark(num_items, profile=False, latent_dims=(32, 64, 128, 256, 512, 1024
         xnor_scorer_timings = _benchmark(xnor_scorer,
                                          profile_filename=xnor_scorer_profile)
 
-        print('Benchmarks at {}: scorer {}, XNOR scorer {}, ratio {}'.format(
+        print('Benchmarks at {}: scorer {}, XNOR scorer {}, ratio {}, memory ratio {}'.format(
             latent_dim,
             np.median(scorer_timings),
             np.median(xnor_scorer_timings),
-            np.median(scorer_timings) / np.median(xnor_scorer_timings)
+            np.median(scorer_timings) / np.median(xnor_scorer_timings),
+            scorer.memory() / xnor_scorer.memory()
         ))
 
         validation_db.save_benchmark(latent_dim,
                                      xnor=False,
                                      duration=(scorer_timings.mean()
-                                               / num_items).mean())
+                                               / num_items).mean(),
+                                     memory=scorer.memory())
         validation_db.save_benchmark(latent_dim,
                                      xnor=True,
                                      duration=(xnor_scorer_timings
-                                               / num_items).mean())
+                                               / num_items).mean(),
+                                     memory=xnor_scorer.memory())
 
 
 if __name__ == '__main__':
