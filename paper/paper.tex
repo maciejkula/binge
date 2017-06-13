@@ -43,14 +43,7 @@ The challenge of low-latency scoring leads many systems to rely on a pre-compute
 
 To alleviate these constraints, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable ranking accuracy to standard learning-to-rank approaches while being several times faster to score and requiring a fraction of the memory. In MovieLens 100k experiments, our binary representations are within 4\% of the accuracy of the real-valued model, but are over 13 times faster to score and take 55\% of the memory.
 
-\section{Related work}
-\citet{shrivastava2014asymmetric} propose a solution for efficient ranking of large result sets through approximate maximum inner product search (MIPS). They extend well-known \citep{indyk1998approximate} locality-sensitive hashing techniques to the MIPS setting through asymmetric transformations of the query and candidate vectors, and show their applicability to recommender systems.
-
-Our approach is complementary to approximate inner product search. Approximate MIPS proceeds in two stages: (1) identification of candidate result vectors through localicty-sensitive hashing, followed by (2) explicit scoring and sorting of the returned candidates. Replacing real-valued dot products by XNOR operations in the second stage will yield incremental performance gains over a real-valued MIPS approach.
-
-\citet{Shen_2015_ICCV} expand on this approach by learning asymmetric binary hash functions. The hash functions are trained to minimize the L2 norm between the inner product matrix of the original input vectors and the inner product matrix of their binary representations. As a post-processing technique, it is a applicable to a wide range of problems. However, because the binary representations are obtained as a separate step, this approach may not be able to exploit the benefits in training a binary representation approach end-to-end.
-
-\section{Our approach}
+\section{The model}
 \label{sec:approach}
 \citet{rastegari2016xnor} introduce XNOR-Networks, an approach that combines 1-bit quantization of fully-connected and convolutional layers with representing dot products through scaled XNOR and bitcounting operations.
 
@@ -169,6 +162,13 @@ Nevertheless, the model's speed enables some very favourable tradeoffs.
 When optimizing for MRR in both settings (at 1024 dimensions for the continuous and 2048 for the binary case), the XNOR representation achieves 96\% of the maximum MRR of the float representations at 13 times the query throughput and using only 6\% of the memory.
 
 When optimizing for query throughput at 32 dimensions for the continuous case, the XNOR representation (at 512 dimensions) can improve the ranking performance by achieving 110\% of the continuous MRR while being slightly faster at 1.2 times the query throughput, and using 55\% of the memory.
+
+\section{Related work}
+\citet{shrivastava2014asymmetric} propose a solution for efficient ranking of large result sets through approximate maximum inner product search (MIPS). They extend well-known \citep{indyk1998approximate} locality-sensitive hashing techniques to the MIPS setting through asymmetric transformations of the query and candidate vectors, and show their applicability to recommender systems.
+
+Our approach is complementary to approximate inner product search. Approximate MIPS proceeds in two stages: (1) identification of candidate result vectors through localicty-sensitive hashing, followed by (2) explicit scoring and sorting of the returned candidates. Replacing real-valued dot products by XNOR operations in the second stage will yield incremental performance gains over a real-valued MIPS approach.
+
+\citet{Shen_2015_ICCV} expand on this approach by learning asymmetric binary hash functions. The hash functions are trained to minimize the L2 norm between the inner product matrix of the original input vectors and the inner product matrix of their binary representations. As a post-processing technique, it is a applicable to a wide range of problems. However, because the binary representations are obtained as a separate step, this approach may not be able to exploit the benefits in training a binary representation approach end-to-end.
 
 \section{Conclusion}
 We show that binary user and item representations allow recommender system designers to exploit an attractive new set of speed-accuracy trade-offs. They are straightforward to estimate, and can easily be used in any existing model estimated using stochastic gradient descent.
