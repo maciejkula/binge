@@ -43,9 +43,7 @@ The challenge of low-latency scoring leads many systems to rely on a pre-compute
 
 Additionaly, while a pre-compute solution removes model prediction from the critical path, it still requires substantial investment in computational and storage resources to calculate and cache the predictions of the model. Often the amount of comutation required makes timely updating of the cached results impossible. At Pinterest, pre-calculation of related pins results was so demanding that ranking of different segments of the catalogue had to be staggered in time, leading to stale results and reduced ease of development \citep[Section 5.5]{liu2017related}. \citet{koenigstein2012efficient} estimate that computing recommendations for the Yahoo! Music dataset \citep{dror2011yahoo} with a 50-dimensional latent factor model woud take over 135 hours.
 
-To alleviate these constraints in both online and offline settings, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable ranking accuracy to standard learning-to-rank approaches while being several times faster to score and requiring a fraction of the memory. In MovieLens 100k experiments, our binary representations are within 4\% of the accuracy of the real-valued model, but are over 13 times faster to score and take 55\% of the memory.
-
-
+To alleviate these constraints in both online and offline settings, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable ranking accuracy to standard learning-to-rank approaches while being several times faster to score and requiring a fraction of the memory. In MovieLens 100k experiments, our binary representations are within 4\% of the accuracy of the real-valued model, but are over 13 times faster to score and take only 6\% of the memory.
 
 \section{Our approach}
 \label{sec:approach}
