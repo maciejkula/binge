@@ -82,9 +82,13 @@ r_{ui} = \binaryApproximation + b_u + b_i
 \end{equation}
 Note that the scaling factors $\alpha$ and $\beta$ need to be stored (in addition to the latent representations and biases) to compute predictions in the binary model.
 
-The model is trained using backpropagation, and so we a smooth approximation to the derivative of the sign function to facilitate training. Following \citet{courbariaux2016binarized}, we define
+The model is trained using backpropagation, and so we use a smooth approximation to the derivative of the sign function to facilitate training. Following \citet{courbariaux2016binarized}, we define
 \begin{equation}
-\frac{d\sign}{dw} = w1_{\abs{w} \leq 1}.
+  \frac{d\sign}{dw}=
+  \begin{cases}
+    w & \text{if}\ \abs{w} \leq 1 \\
+    0 & \text{otherwise}.
+  \end{cases}
 \end{equation}
 
 We use two loss functions to train the model:
