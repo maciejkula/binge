@@ -96,7 +96,7 @@ We use two loss functions to train the model:
 \item Bayesian personalised ranking (BPR, \citet{rendle2009bpr}), and
 \item adaptive sampling maximum margin loss, following \citet{weston2011wsabie}.
 \end{itemize}
-For both loss functions, for any known positive user-item interaction pair $(u, i)$, we sample an implicit negative item $j \in \symUserInteractionSet^-$. For BPR, the loss for any such triplet is given by
+For both loss functions, for any known positive user-item interaction pair $(u, i)$, we uniformly sample an implicit negative item $j$ \in \symUserInteractionSet^-$. For BPR, the loss for any such triplet is given by
 \begin{equation}
 1 - \sigma\left(r_{ui} - r_{uj}\right),
 \end{equation}
@@ -161,7 +161,8 @@ The source code for the implementation is available on Github at \url{https://gi
 \label{sec:results}
 Table \ref{tb:results} summarises the results of the Movielens 100K experiment. Each row presents the best MRR (mean reciprocal rank) results for both real-valued and binary models of a given dimensionality. MRR ratio denotes the fraction of the real-valued MRR the binary model achieves for that dimensionality; PPMS (predictions per millisecond) ratio denotes how many more predictions the binary model can compute per millisecond.
 
-Results on scoring speed and memory use broadly confirm the naive calculations from section \ref{sec:approach}, converging to over 20 times faster scoring at around 3\% of memory as latent dimensionality increases.
+Results on scoring speed and memory use broadly confirm the naive calculations from section \ref{sec:approach}, converging to over 20 times faster scoring at around 3\% of memory as latent dimensionality increases. Memory savings plateau as latent dimensionality increases and storing the binary scaling factors becomes less important.
+
 As expected, for the same dimensionality a binary model achieves lower ranking accuracy. On average, the accuracy loss is around 8\%, varying between 2\% and 16\%.
 Nevertheless, the model's speed enables some very favourable tradeoffs.
 
