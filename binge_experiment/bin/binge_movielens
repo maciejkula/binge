@@ -158,6 +158,8 @@ def validate(ctx):
         for embedding_dim in bar:
             hyperparams = results_db.load_best(embedding_dim, xnor)
 
+            hyperparams['learning_rate'] = 0.001
+
             if verbose:
                 print('Validating hyperparams {}'.format(hyperparams))
 
