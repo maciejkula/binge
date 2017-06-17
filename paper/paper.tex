@@ -43,7 +43,7 @@ The challenge of low-latency scoring leads many systems to rely on a pre-compute
 
 Additionaly, while a pre-compute solution removes model prediction from the critical path, it still requires substantial investment in computational and storage resources to calculate and cache the predictions of the model. Often the amount of comutation required makes timely updating of the cached results impossible. At Pinterest, pre-calculation of related pins results was so demanding that ranking of different segments of the catalogue had to be staggered in time, leading to stale results and reduced ease of development \citep[Section 5.5]{liu2017related}. \citet{koenigstein2012efficient} estimate that computing recommendations for the Yahoo! Music dataset \citep{dror2011yahoo} with a 50-dimensional latent factor model woud take over 135 hours.
 
-To alleviate these constraints in both online and offline settings, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable ranking accuracy to standard learning-to-rank approaches while being several times faster to score and requiring a fraction of the memory. In MovieLens 100k experiments, our binary representations are within 4\% of the accuracy of the real-valued model, but are over 13 times faster to score and take only 6\% of the memory.
+To alleviate these constraints in both online and offline settings, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable ranking accuracy to standard learning-to-rank approaches while being several times faster to score, requiring a fraction of the memory, and being only marginally more complex to estimate. In MovieLens 100k experiments, our binary representations are within 4\% of the accuracy of the real-valued model, but are over 13 times faster to score and take only 6\% of the memory.
 
 \section{Our approach}
 \label{sec:approach}
@@ -96,7 +96,7 @@ We use two loss functions to train the model:
 \item Bayesian personalised ranking (BPR, \citet{rendle2009bpr}), and
 \item adaptive sampling maximum margin loss, following \citet{weston2011wsabie}.
 \end{itemize}
-For both loss functions, for any known positive user-item interaction pair $(u, i)$, we uniformly sample an implicit negative item $j$ \in \symUserInteractionSet^-$. For BPR, the loss for any such triplet is given by
+For both loss functions, for any known positive user-item interaction pair $(u, i)$, we uniformly sample an implicit negative item $j \in \symUserInteractionSet^-$. For BPR, the loss for any such triplet is given by
 \begin{equation}
 1 - \sigma\left(r_{ui} - r_{uj}\right),
 \end{equation}
@@ -145,17 +145,17 @@ We randomly divide the dataset into a training, test, and validation set. In ord
 Benchmark results are measured on an Intel Xeon E5-2686v4 CPU by running a 100 repetitions of scoring 100,000 items and averaging the results.
 
 \subsection{Implementation}
-The model is implemented in PyTorch and trained using the nVidia K40 GPUs. During training, the embedding parameters are stored as floats. Similarly, the XNOR dot product is carried out using floats in $\{1, -1\}$. The minibatch size and number of training epochs are treated as model hyperparameters. All models are trained using the Adam training rate schedule. 
+The model is implemented in PyTorch and trained using the nVidia K40 GPUs. The implementation is only marginally more complex than a standard learning-to-rank model, and is accomplished by simply replacing the user-item vector dot product operation with its binary counterpart. The change results in a small increase in training time.
 
-The prediction code runs on the CPU and is implemented using Intel X86 AVX2 SIMD intrinsics. SIMD (Single Instruction Multiple Data) instructions allow the CPU to operate on multiple pieces of data in parallel, achieving significant speedups over the scalar version. We use explicit intrinsics rather than compiler autovectorization to ensure that neither the real-valued nor the binary prediction code is unfairly disadvantaged by the quality of compiler autovectorization. 
+During training, the embedding parameters are stored and updated as single precision floating point values. Similarly, the XNOR dot product is carried out using floats in $\{1, -1\}$. The minibatch size and number of training epochs are treated as model hyperparameters. All models are trained using the Adam training rate schedule \citep{kingma2014adam}.
 
-The real-valued prediction code is implemented using 8-float wide fused multiply-add instructions (\texttt{\_mm256\_fmadd\_ps}).
+The prediction code runs on the CPU and is implemented in C using Intel X86 AVX2 SIMD intrinsics. SIMD (Single Instruction Multiple Data) instructions allow the CPU to operate on multiple pieces of data in parallel, achieving significant speedups over the scalar version. We use explicit intrinsics rather than compiler autovectorization to ensure that neither the real-valued nor the binary prediction code is unfairly disadvantaged by the quality of compiler autovectorization. 
 
-In the binary version, the real-valued embedding parameters used in training are discarded, and the derived 1-bit weights are packed into 32-bit integer buffers. The XNOR dot product is implemented using 8-integer wide XOR operations (256 binary weights are processed at a time), followed by a popcount instruction to count the number of on bits in the result. We use the \texttt{libpopcnt} \citep{mula2016faster} library for the bit counting operations.
+The real-valued prediction code is implemented using 8-float wide fused multiply-add instructions (\texttt{\_mm256\_fmadd\_ps}). In the binary version, the real-valued embedding parameters used in training are discarded, and the derived 1-bit weights are packed into 32-bit integer buffers. The XNOR dot product is implemented using 8-integer wide XOR operations (256 binary weights are processed at a time), followed by a popcount instruction to count the number of on bits in the result. We use the \texttt{libpopcnt} \citep{mula2016faster} library for the bit counting operations.
 
 Both versions use 32-bit aligned input data to utilise aligned SIMD register load instructions. The code is compiled using GCC 4.8.4 for the AVX2-enabled Broadwell architecture.
 
-The source code for the implementation is available on Github at \url{https://github.com/maciejkula/binge}.
+The source code for both model training and prediction is available on Github at \url{https://github.com/maciejkula/binge}.
 
 \subsection{Results}
 \label{sec:results}
@@ -177,7 +177,7 @@ Our work complements these approaches. Binary representations are direct replace
 
 The method that is most closely related to the model we present in this paper is \citet{Shen_2015_ICCV}, who expand on MIPS by learning asymmetric binary hash functions. The hash functions are trained to minimize the L2 norm between the inner product matrix of the original input vectors and the inner product matrix of their binary representations. As a post-processing technique, it is a applicable to a wide range of problems. However, because the binary representations are obtained as a separate step, this approach may not be able to exploit the benefits in training a binary representation approach end-to-end.
 
-\section{Conclusion}
+\section{Conclusion and future work}
 We show that binary user and item representations allow recommender system designers to exploit an attractive new set of speed-accuracy trade-offs. They are straightforward to estimate, and can easily be used in any existing model estimated using stochastic gradient descent.
 
 
