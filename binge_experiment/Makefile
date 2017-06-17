@@ -1,10 +1,10 @@
 .PHONY: optimize
 optimize:
-	bin/binge_movielens --gpu optimize --num-iterations 20
 	bin/binge_movielens --gpu --xnor optimize --num-iterations 20
+	bin/binge_movielens --gpu optimize --num-iterations 20
 validate:
-	bin/binge_movielens --gpu validate
 	bin/binge_movielens --gpu --xnor validate
+	bin/binge_movielens --gpu validate
 bench:
 	bin/binge_bench
 clean:

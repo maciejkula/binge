@@ -45,16 +45,6 @@ def binarize_array(array):
     return array
 
 
-# def binary_dot(x, y):
-
-#     x_scale = x.abs().mean(1)
-#     y_scale = y.abs().mean(1)
-
-#     xnor = sign(x) * sign(y)
-
-#     return xnor.sum(1) * x_scale * y_scale
-
-
 class BinaryDot(Function):
 
     def forward(self, x, y):
@@ -85,47 +75,19 @@ class BinaryDot(Function):
         sign_x = x.sign()
         sign_y = y.sign()
 
-        dx_dsign = (x.abs() < 1.0).float() * x
-        dy_dsign = (y.abs() < 1.0).float() * y
+        dx_dsign = (x.abs() <= 1.0).float()
+        dy_dsign = (y.abs() <= 1.0).float()
 
-        # return (grad_output * sign_y *
-        #         (1.0 / embedding_dim + dx_dsign * x_scale),
-        #         grad_output * sign_x *
-        #         (1.0 / embedding_dim + dy_dsign * y_scale))
+        grads = (grad_output * sign_y * y_scale *
+                 (1.0 / embedding_dim + dx_dsign * x_scale),
+                 grad_output * sign_x * x_scale *
+                 (1.0 / embedding_dim + dy_dsign * y_scale))
 
-        return (grad_output * sign_y * y_scale *
-                (1.0 + dx_dsign * x_scale),
-                grad_output * sign_x * x_scale *
-                (1.0 + dy_dsign * y_scale))
-
-        return (grad_output * sign_y * y_scale *
-                (1.0 / embedding_dim + dx_dsign * x_scale),
-                grad_output * sign_x * x_scale *
-                (1.0 / embedding_dim + dy_dsign * y_scale))
+        return grads
 
 def binary_dot(x, y):
 
     return BinaryDot()(x, y)
-
-
-class Sign(Function):
-
-    def forward(self, x):
-
-        self.save_for_backward(x)
-
-        return x.sign()
-
-    def backward(self, grad_output):
-
-        x, = self.saved_tensors
-
-        return grad_output * (x.abs() < 1.0).float().abs()
-
-
-def sign(x):
-
-    return Sign()(x)
 
 
 class BilinearNet(nn.Module):

@@ -31,9 +31,9 @@ def random_search(train,
 
     space = {
         'n_iter': distributions.randint(5, 50),
-        'batch_size': [64, 128, 256, 1024, 2048, 4096],
-        'l2': [0.0],
-        'learning_rate': [1e-3],
+        'batch_size': [256, 1024, 2048, 4096],
+        'l2': [1e-6, 1e-4, 0.0],
+        'learning_rate': [1e-3, 1e-2, 5 * 1e-2],
         # 'l2': distributions.expon(0, 0.005),
         # 'learning_rate': distributions.expon(0, 0.005),
         'loss': ['bpr', 'adaptive']  # TODO: re-enable adaptive loss
@@ -157,8 +157,6 @@ def validate(ctx):
                            label='Running validation') as bar:
         for embedding_dim in bar:
             hyperparams = results_db.load_best(embedding_dim, xnor)
-
-            hyperparams['learning_rate'] = 0.001
 
             if verbose:
                 print('Validating hyperparams {}'.format(hyperparams))
