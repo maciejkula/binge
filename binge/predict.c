@@ -115,6 +115,72 @@ void predict_float_256(float* user_vector,
 }
 
 
+int predict_xnor_256_lowdim(int32_t* user_vector,
+                             int32_t* item_vectors,
+                             float user_bias,
+                             float* item_biases,
+                             float user_norm,
+                             float* item_norms,
+                             float* out,
+                             intptr_t num_items,
+                             intptr_t latent_dim,
+                             int cpuid) {
+    
+    int i, last_idx, item_idx;
+    int32_t* item_vector;
+    int total_elements = num_items * latent_dim;
+
+    __m256i x, y, xnor;
+    float scalar_prediction;
+    unsigned int on_bits;
+    int32_t bits[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+    float max_on_bits = latent_dim * 32;
+
+    __m256i allbits = _mm256_cmpeq_epi32(
+        _mm256_setzero_si256(),
+        _mm256_setzero_si256());
+    
+    // Repeat the user vector to fit into a 256-bit AVX2 register
+    int32_t user_vector_repeated[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+    for (int k; k < 8; k++) {
+        user_vector_repeated[k] = user_vector[k % latent_dim];
+    }
+
+    y = _mm256_loadu_si256(user_vector_repeated);
+
+    for (i=0; i + 8 < total_elements; i+=8) {
+
+        item_idx = i / latent_dim;
+
+        item_vector = item_vectors + i;
+
+        x = _mm256_loadu_si256(item_vector);
+
+        // XNOR
+        xnor = _mm256_xor_si256(_mm256_xor_si256(x, y), allbits);
+        _mm256_store_si256(bits, xnor);
+
+        // Bitcount
+        for (int k=0; k < 8 / latent_dim; k++) {
+
+            last_idx = item_idx + k;
+            
+            on_bits = popcnt_no_cpuid((const void*) (bits + k * latent_dim),
+                                      latent_dim * sizeof(float),
+                                      cpuid);
+            scalar_prediction = (on_bits - (max_on_bits - on_bits))
+                * item_norms[last_idx];
+                //* user_norm 
+            out[last_idx] = scalar_prediction + item_biases[last_idx];
+        }
+    }
+
+    return last_idx;
+}
+
+
 void predict_xnor_256(int32_t* user_vector,
                       int32_t* item_vectors,
                       float user_bias,
@@ -125,6 +191,22 @@ void predict_xnor_256(int32_t* user_vector,
                       intptr_t num_items,
                       intptr_t latent_dim) {
 
+    int i = 0;
+    int cpuid = _get_cpuid();
+
+    if (latent_dim < 8) {
+        i = predict_xnor_256_lowdim(user_vector,
+                                    item_vectors,
+                                    user_bias,
+                                    item_biases,
+                                    user_norm,
+                                    item_norms,
+                                    out,
+                                    num_items,
+                                    latent_dim,
+                                    cpuid);
+    }
+
     int32_t* item_vector;
     int j;
 
@@ -133,15 +215,13 @@ void predict_xnor_256(int32_t* user_vector,
     unsigned int on_bits;
     int32_t bits[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-    int cpuid = _get_cpuid();
-
     float max_on_bits = latent_dim * 32;
 
     __m256i allbits = _mm256_cmpeq_epi32(
         _mm256_setzero_si256(),
         _mm256_setzero_si256());
 
-    for (int i = 0; i < num_items; i++) {
+    for (; i < num_items; i++) {
 
         item_vector = item_vectors + (i * latent_dim);
         scalar_prediction = 0;
