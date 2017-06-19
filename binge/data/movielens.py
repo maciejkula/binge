@@ -8,7 +8,14 @@ import scipy.sparse as sp
 from binge.data import _common
 
 
-def _read_raw_data(path):
+URL_100K = ('https://github.com/maciejkula/'
+            'lightfm_datasets/releases/'
+            'download/v0.1.0/movielens.zip')
+URL_10M = ('http://files.grouplens.org/datasets/movielens/ml-10m.zip')
+URL_1M = ('http://files.grouplens.org/datasets/movielens/ml-1m.zip')
+
+
+def _read_raw_data_100k(path):
     """
     Return the raw lines of the train and test files.
     """
@@ -17,19 +24,26 @@ def _read_raw_data(path):
         return datafile.read('ml-100k/u.data').decode().split('\n')
 
 
-def _parse(data):
+def _read_raw_data_10M(path):
+
+    with zipfile.ZipFile(path) as datafile:
+        # return datafile.read('ml-10M100K/ratings.dat').decode().split('\n')
+        return datafile.read('ml-1m/ratings.dat').decode().split('\n')
+
+
+def _parse(data, separator='\t'):
 
     for line in data:
 
         if not line:
             continue
 
-        uid, iid, rating, timestamp = [int(x) for x in line.split('\t')]
+        uid, iid, rating, timestamp = [x for x in line.split(separator)]
 
-        yield int(uid), int(iid), int(rating), int(timestamp)
+        yield int(uid), int(iid), float(rating), int(timestamp)
 
 
-def _load_data(data):
+def _load_data(data, separator='\t'):
 
     user_dict = {}
     item_dict = {}
@@ -38,7 +52,7 @@ def _load_data(data):
     iids = array.array('i')
     timestamps = array.array('i')
 
-    for uid, iid, rating, timestamp in _parse(data):
+    for uid, iid, rating, timestamp in _parse(data, separator):
         uids.append(user_dict.setdefault(uid,
                                          len(user_dict)))
         iids.append(item_dict.setdefault(iid,
@@ -91,7 +105,7 @@ def fetch_movielens(data_home=None, download_if_missing=True, random_seed=None):
                                 download_if_missing)
 
     # Load raw data
-    raw = _read_raw_data(zip_path)
+    raw = _read_raw_data_100k(zip_path)
 
     uids, iids, timestamps = _load_data(raw)
 
@@ -122,3 +136,70 @@ def fetch_movielens(data_home=None, download_if_missing=True, random_seed=None):
                           shape=(num_users, num_items))
 
     return train, test, validation
+
+
+def fetch_movielens_10M(data_home=None, download_if_missing=True, random_seed=None):
+    """
+    Parameters
+    ----------
+
+    data_home: path, optional
+        Path to the directory in which the downloaded data should be placed.
+        Defaults to ``~/lightfm_data/``.
+    download_if_missing: bool, optional
+        Download the data if not present. Raises an IOError if False and data is missing.
+
+    Notes
+    -----
+
+    The return value is a dictionary containing the following keys:
+
+    Returns
+    -------
+
+    """
+
+    random_state = np.random.RandomState(random_seed)
+
+    validation_percentage = 0.1
+    test_percentage = 0.1
+
+    zip_path = _common.get_data(data_home,
+                                URL_1M,
+                                'movielens1M',
+                                'movielens.zip',
+                                download_if_missing)
+
+    # Load raw data
+    raw = _read_raw_data_10M(zip_path)
+
+    uids, iids, timestamps = _load_data(raw, '::')
+
+    num_users = uids.max() + 1
+    num_items = iids.max() + 1
+
+    sort_indices = np.arange(len(timestamps))
+    random_state.shuffle(sort_indices)
+
+    uids = uids[sort_indices]
+    iids = iids[sort_indices]
+    timestamps = timestamps[sort_indices]
+
+    validation_index = int(validation_percentage * len(uids))
+    test_index = int((validation_percentage + test_percentage) * len(uids))
+
+    validation = sp.coo_matrix((np.ones_like(uids[:validation_index]),
+                                (uids[:validation_index],
+                                 iids[:validation_index])),
+                               shape=(num_users, num_items))
+    test = sp.coo_matrix((np.ones_like(uids[validation_index:test_index]),
+                                (uids[validation_index:test_index],
+                                 iids[validation_index:test_index])),
+                               shape=(num_users, num_items))
+    train = sp.coo_matrix((np.ones_like(uids[test_index:]),
+                           (uids[test_index:],
+                            iids[test_index:])),
+                          shape=(num_users, num_items))
+
+    return train, test, validation
+

@@ -15,6 +15,8 @@ from binge.evaluation import mrr_score
 
 from binge_experiment.results import Results
 
+EMBEDDING_DIMENSIONS = (32, 64, 128, 256, 512, 1024)# 2048, 4096) 
+
 
 def random_search(train,
                   test,
@@ -30,8 +32,8 @@ def random_search(train,
     results_db = Results('movielens_100k.log')
 
     space = {
-        'n_iter': distributions.randint(5, 50),
-        'batch_size': [256, 1024, 2048, 4096],
+        'n_iter': distributions.randint(5, 30),
+        'batch_size': [2048, 4096, 8192],
         'l2': [1e-6, 1e-4, 0.0],
         'learning_rate': [1e-3, 1e-2, 5 * 1e-2],
         # 'l2': distributions.expon(0, 0.005),
@@ -84,7 +86,7 @@ def check(ctx):
 
     (xnor, gpu, random_seed, verbose) = ctx.obj['options']
 
-    train, test, validation = movielens.fetch_movielens(
+    train, test, validation = movielens.fetch_movielens_10M(
         random_seed=random_seed
     )
 
@@ -124,11 +126,11 @@ def optimize(ctx, num_iterations=10):
 
     (xnor, gpu, random_seed, verbose) = ctx.obj['options']
 
-    train, test, validation = movielens.fetch_movielens(
+    train, test, validation = movielens.fetch_movielens_10M(
         random_seed=random_seed
     )
 
-    for embedding_dim in (32, 64, 128, 256, 512, 1024, 2048, 4096):
+    for embedding_dim in EMBEDDING_DIMENSIONS:
         random_search(train,
                       test,
                       validation,
@@ -149,11 +151,11 @@ def validate(ctx):
 
     (xnor, gpu, random_seed, verbose) = ctx.obj['options']
 
-    train, test, validation = movielens.fetch_movielens(
+    train, test, validation = movielens.fetch_movielens_10M(
         random_seed=random_seed
     )
 
-    with click.progressbar((32, 64, 128, 256, 512, 1024, 2048, 4096),
+    with click.progressbar(EMBEDDING_DIMENSIONS,
                            label='Running validation') as bar:
         for embedding_dim in bar:
             hyperparams = results_db.load_best(embedding_dim, xnor)
@@ -168,16 +170,12 @@ def validate(ctx):
             model.fit(train, verbose=verbose)
 
             validation_mrrs = mrr_score(model, validation, train + test)
-            scorer_validation_mrrs = mrr_score(model.get_scorer(),
-                                               validation,
-                                               train + test)
 
             validation_db.save(model.get_params(), validation_mrrs)
 
             if verbose:
-                print('Validation MRR: {} ({} from scorer)'
-                      .format(validation_mrrs.mean(),
-                              scorer_validation_mrrs.mean()))
+                print('Validation MRR: {}'
+                      .format(validation_mrrs.mean()))
 
 
 @cli.command()

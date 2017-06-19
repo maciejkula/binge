@@ -1,7 +1,7 @@
 .PHONY: optimize
 optimize:
-	bin/binge_movielens --gpu --xnor optimize --num-iterations 60
-	bin/binge_movielens --gpu optimize --num-iterations 60
+	bin/binge_movielens --gpu --xnor optimize --num-iterations 40
+	bin/binge_movielens --gpu optimize --num-iterations 40
 validate:
 	bin/binge_movielens --gpu --xnor validate
 	bin/binge_movielens --gpu validate
