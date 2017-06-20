@@ -29,7 +29,7 @@
 
 
 \begin{abstract}
-Large-scale recommender systems often face severe latency and storage constraints at prediction time. These are particularly acute when the number of items that could be recommended is large, and calculating predictions for the full set is computationally intensive. To relax these constraints, we train recommendation models that use binary rather than real-valued user and item representations, and show that they offer a range of attractive speed-accuracy trade-offs. In particular, we demonstrate 13 times faster prediction at the expense of a modest 4\% loss in ranking accuracy on the Movielens 1M dataset.
+Large-scale recommender systems often face severe latency and storage constraints at prediction time. These are particularly acute when the number of items that could be recommended is large, and calculating predictions for the full set is computationally intensive. To relax these constraints, we train recommendation models that use binary rather than real-valued user and item representations, and show that they offer a range of attractive speed-accuracy trade-offs. In particular, we demonstrate 20 times faster prediction at the expense of a modest 7\% loss in ranking accuracy on the Movielens 1M dataset.
 \end{abstract}
 
 \maketitle
@@ -119,14 +119,13 @@ For the purposes of this paper, we focus on a simple bilinear collaborative filt
 \toprule
 Dimension &   MRR & Binary MRR & MRR ratio\tnote{1} &   PPMS\tnote{2} & Binary PPMS & PPMS ratio & Memory use ratio \\
 \midrule
-       32 & 0.096 &      0.088 &     0.919 & 89,299 &     245,644 &      2.751 &            0.091 \\
-       64 & 0.098 &      0.096 &     0.973 & 47,565 &     209,486 &      4.404 &            0.062 \\
-      128 & 0.108 &      0.091 &     0.843 & 20,502 &     156,404 &      7.629 &            0.047 \\
-      256 & 0.109 &      0.097 &     0.884 & 10,631 &     166,500 &     15.661 &            0.039 \\
-      512 & 0.112 &      0.105 &     0.938 &   5391 &     110,418 &     20.479 &            0.035 \\
-     1024 & 0.114 &      0.102 &     0.897 &   2689 &      69,349 &     25.786 &            0.033 \\
-     2048 & 0.111 &      0.109 &     0.984 &   1352 &      34,826 &     25.745 &            0.032 \\
-     4096 & 0.111 &      0.107 &     0.961 &    666 &      15,907 &     23.856 &            0.032 \\
+       32 & 0.072 &      0.059 &     0.816 & 85,510 &     264,310 &      3.091 &            0.091 \\
+       64 & 0.075 &      0.065 &     0.862 & 44,964 &     221,000 &      4.915 &            0.062 \\
+      128 & 0.076 &      0.070 &     0.926 & 22,394 &     166,273 &      7.425 &            0.047 \\
+      256 & 0.078 &      0.072 &     0.916 & 12,040 &     189,353 &     15.727 &            0.039 \\
+      512 & 0.079 &      0.073 &     0.921 &   5933 &     118,895 &     20.039 &            0.035 \\
+     1024 & 0.081 &      0.076 &     0.933 &   2989 &      59,612 &     19.942 &            0.033 \\
+     2048 & 0.080 &      0.075 &     0.930 &   1514 &      32,092 &     21.185 &            0.032 \\
 \bottomrule
 \end{tabular}
 \begin{tablenotes}
@@ -163,12 +162,12 @@ Table \ref{tb:results} summarises the results of the Movielens 1M experiment. Ea
 
 Results on scoring speed and memory use broadly confirm the naive calculations from section \ref{sec:approach}, converging to over 20 times faster scoring at around 3\% of memory as latent dimensionality increases. Memory savings plateau as latent dimensionality increases and storing the binary scaling factors becomes less important.
 
-As expected, for the same dimensionality a binary model achieves lower ranking accuracy. On average, the accuracy loss is around 8\%, varying between 2\% and 16\%.
-Nevertheless, the model's speed enables some very favourable tradeoffs.
+As expected, for the same dimensionality a binary model achieves lower ranking accuracy. On average, the accuracy loss is around 10\%, varying between 7\% and 18\%.
+Nevertheless, the binary model's speed enables some very favourable tradeoffs
 
-When optimizing for MRR in both settings (at 1024 dimensions for the continuous and 2048 for the binary case), the XNOR representation achieves 96\% of the maximum MRR of the float representations at 13 times the query throughput and using only 6\% of the memory.
+When optimizing for MRR in both settings (at 1024 dimensions for the continuous and 1024 for the binary case), the XNOR representation achieves 93\% of the maximum MRR of the float representations at 20 times the query throughput and using only 3\% of the memory.
 
-When optimizing for query throughput at 32 dimensions for the continuous case, the XNOR representation (at 512 dimensions) can improve the ranking performance by achieving 110\% of the continuous MRR while being slightly faster at 1.2 times the query throughput, and using 55\% of the memory.
+When optimizing for query throughput at 32 dimensions for the continuous case, the XNOR representation (at 512 dimensions) can improve the ranking performance by achieving 101\% of the continuous MRR while being slightly faster at 1.4 times the query throughput, and using 55\% of the memory.
 
 \section{Related work}
 Much of existing work on efficient recommendation retrieval focuses on reducing the number of dot products that need to be performed in order to retrieve top recommendations. \citet{koenigstein2012efficient} introduces an exact branch-and-bound based on metric trees as well as an approximate algorithm that clusters users and serves recommendations computed for the cluster centers. \citet{shrivastava2014asymmetric} extend well-known \citep{indyk1998approximate} locality-sensitive hashing techniques to maximum inner product search (MIPS) through asymmetric transformations of the query and candidate vectors.

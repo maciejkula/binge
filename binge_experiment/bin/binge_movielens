@@ -278,7 +278,7 @@ def show():
               (1.0 - pretty['MRR ratio'].mean()) * 100,
               (1.0 - pretty['MRR ratio'].max()) * 100,
               (1.0 - pretty['MRR ratio'].min()) * 100))
-    print('Nevertheless, the binary model\'s speed enables some very favourable tradeoffs')
+    print('Nevertheless, the binary model\'s speed enables some very favourable tradeoffs.')
     print('')
     print('When optimizing for MRR in both settings (at {} dimensions for the '
           'continuous and {} for the binary case), the XNOR representation achieves {:.0f}\% '
