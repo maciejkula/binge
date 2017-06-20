@@ -9,7 +9,7 @@ from scipy.stats import distributions
 
 from sklearn.model_selection import ParameterSampler
 
-from binge import FactorizationModel
+from binge import FactorizationModel, PopularityModel
 from binge.data import movielens
 from binge.evaluation import mrr_score
 
@@ -154,6 +154,14 @@ def validate(ctx):
     train, test, validation = movielens.fetch_movielens_10M(
         random_seed=random_seed
     )
+
+    popularity_model = PopularityModel()
+    popularity_model.fit(train)
+
+    popularity_mrr = mrr_score(popularity_model,
+                               validation,
+                               train + test)
+    print('Popularity MRR: {}'.format(popularity_mrr.mean()))
 
     with click.progressbar(EMBEDDING_DIMENSIONS,
                            label='Running validation') as bar:

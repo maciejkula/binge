@@ -483,3 +483,23 @@ class XNORScorer:
         get_size = lambda x: x.itemsize * x.size
 
         return sum(get_size(x) for x in self._parameters())
+
+
+class PopularityModel:
+
+    def __init__(self):
+
+        self._popularity = None
+
+    def fit(self, interactions):
+
+        self._popularity = interactions.getnnz(axis=0).astype(np.float32)
+
+        assert len(self._popularity) == interactions.shape[1]
+
+    def predict(self, user_ids, item_ids=None):
+
+        if item_ids is not None:
+            return self._popularity[item_ids]
+        else:
+            return self._popularity
