@@ -11,7 +11,6 @@ from binge.data import _common
 URL_100K = ('https://github.com/maciejkula/'
             'lightfm_datasets/releases/'
             'download/v0.1.0/movielens.zip')
-URL_10M = ('http://files.grouplens.org/datasets/movielens/ml-10m.zip')
 URL_1M = ('http://files.grouplens.org/datasets/movielens/ml-1m.zip')
 
 
@@ -24,10 +23,9 @@ def _read_raw_data_100k(path):
         return datafile.read('ml-100k/u.data').decode().split('\n')
 
 
-def _read_raw_data_10M(path):
+def _read_raw_data_1M(path):
 
     with zipfile.ZipFile(path) as datafile:
-        # return datafile.read('ml-10M100K/ratings.dat').decode().split('\n')
         return datafile.read('ml-1m/ratings.dat').decode().split('\n')
 
 
@@ -64,7 +62,7 @@ def _load_data(data, separator='\t'):
             np.array(timestamps))
         
 
-def fetch_movielens(data_home=None, download_if_missing=True, random_seed=None):
+def fetch_movielens_100k(data_home=None, download_if_missing=True, random_seed=None):
     """
     Fetch the `Movielens 100k dataset <http://grouplens.org/datasets/movielens/100k/>`_.
 
@@ -138,7 +136,7 @@ def fetch_movielens(data_home=None, download_if_missing=True, random_seed=None):
     return train, test, validation
 
 
-def fetch_movielens_10M(data_home=None, download_if_missing=True, random_seed=None):
+def fetch_movielens_1M(data_home=None, download_if_missing=True, random_seed=None):
     """
     Parameters
     ----------
@@ -171,7 +169,7 @@ def fetch_movielens_10M(data_home=None, download_if_missing=True, random_seed=No
                                 download_if_missing)
 
     # Load raw data
-    raw = _read_raw_data_10M(zip_path)
+    raw = _read_raw_data_1M(zip_path)
 
     uids, iids, timestamps = _load_data(raw, '::')
 

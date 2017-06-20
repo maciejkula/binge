@@ -29,7 +29,7 @@
 
 
 \begin{abstract}
-Large-scale recommender systems often face severe latency and storage constraints at prediction time. These are particularly acute when the number of items that could be recommended is large, and calculating predictions for the full set is computationally intensive. To relax these constraints, we train recommendation models that use binary rather than real-valued user and item representations, and show that they offer a range of attractive speed-accuracy trade-offs. In particular, we demonstrate 13 times faster prediction at the expense of a modest 4\% loss in ranking accuracy on the Movielens 100K dataset.
+Large-scale recommender systems often face severe latency and storage constraints at prediction time. These are particularly acute when the number of items that could be recommended is large, and calculating predictions for the full set is computationally intensive. To relax these constraints, we train recommendation models that use binary rather than real-valued user and item representations, and show that they offer a range of attractive speed-accuracy trade-offs. In particular, we demonstrate 13 times faster prediction at the expense of a modest 4\% loss in ranking accuracy on the Movielens 1M dataset.
 \end{abstract}
 
 \maketitle
@@ -43,7 +43,7 @@ The challenge of low-latency scoring leads many systems to rely on a pre-compute
 
 Additionaly, while a pre-compute solution removes model prediction from the critical path, it still requires substantial investment in computational and storage resources to calculate and cache the predictions of the model. Often the amount of comutation required makes timely updating of the cached results impossible. At Pinterest, pre-calculation of related pins results was so demanding that ranking of different segments of the catalogue had to be staggered in time, leading to stale results and reduced ease of development \citep[Section 5.5]{liu2017related}. \citet{koenigstein2012efficient} estimate that computing recommendations for the Yahoo! Music dataset \citep{dror2011yahoo} with a 50-dimensional latent factor model woud take over 135 hours.
 
-To alleviate these constraints in both online and offline settings, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable ranking accuracy to standard learning-to-rank approaches while being several times faster to score, requiring a fraction of the memory, and being only marginally more complex to estimate. In MovieLens 100k experiments, our binary representations are within 4\% of the accuracy of the real-valued model, but are over 13 times faster to score and take only 6\% of the memory.
+To alleviate these constraints in both online and offline settings, we propose the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we show that we can estimate binary user and item representations that achieve comparable ranking accuracy to standard learning-to-rank approaches while being several times faster to score, requiring a fraction of the memory, and being only marginally more complex to estimate. In MovieLens 1M experiments, our binary representations are within 4\% of the accuracy of the real-valued model, but are over 13 times faster to score and take only 6\% of the memory.
 
 \section{Our approach}
 \label{sec:approach}
@@ -112,7 +112,7 @@ For the purposes of this paper, we focus on a simple bilinear collaborative filt
 \section{Experiments}
 \begin{table*}[htbp]
 \begin{threeparttable}
-\caption{Movielens 100K results}
+\caption{Movielens 1M results}
 \label{tb:results}
 \centering
 \begin{tabular}{rrrrrrrr}
@@ -137,10 +137,10 @@ Dimension &   MRR & Binary MRR & MRR ratio\tnote{1} &   PPMS\tnote{2} & Binary P
 \end{tablenotes}
 \end{threeparttable}
 \end{table*}
-To assess the accuracy-speed trade-offs enabled by the XNOR approach, we conduct an experiment on the Movielens 100K dataset \citep{harper2016movielens}. The dataset contains 100 thousand ratings from 943 users on 1682 movies. Because the computational speed improvements offered by the binary representations are linear in the size of the catalogue, the results on this dataset should be indicative of results that can be obtained on larger datasets. At the same time, the dataset's small size enables us to easily test hyperparameter configurations and estimate models with high latent dimensions.
+To assess the accuracy-speed trade-offs enabled by the XNOR approach, we conduct an experiment on the Movielens 1M dataset \citep{harper2016movielens}. The dataset contains 1 million ratings from 6000 users on 4000 movies. Because the computational speed improvements offered by the binary representations are linear in the size of the catalogue, the results on this dataset should be indicative of results that can be obtained on larger datasets. At the same time, the dataset's small size enables us to easily test hyperparameter configurations and estimate models with high latent dimensions.
 
 \subsection{Experimental setup}
-We randomly divide the dataset into a training, test, and validation set. In order to build a picture of the accuracy-speed trade-offs afforded by real-valued and binary latent models, we explicitly build models for between 32 and 4096 latent dimensions. For every latent dimensionality, we conduct a random search over the hyperparameter space, and pick optimal learning rates and minibatch sizes for each algorithm based on their performance on the test set. The final results are obtained from ranking interactions from the validation set. We use mean reciprocal rank (MRR) as a measure of ranking quality.
+We randomly divide the dataset into a training, test, and validation set. In order to build a picture of the accuracy-speed trade-offs afforded by real-valued and binary latent models, we explicitly build models for between 32 and 2048 latent dimensions. For every latent dimensionality, we conduct a random search over the hyperparameter space, and pick optimal learning rates and minibatch sizes for each algorithm based on their performance on the test set. The final results are obtained from ranking interactions from the validation set. We use mean reciprocal rank (MRR) as a measure of ranking quality.
 
 Benchmark results are measured on an Intel Xeon E5-2686v4 CPU by running a 100 repetitions of scoring 100,000 items and averaging the results.
 
@@ -159,7 +159,7 @@ The source code for both model training and prediction is available on Github at
 
 \subsection{Results}
 \label{sec:results}
-Table \ref{tb:results} summarises the results of the Movielens 100K experiment. Each row presents the best MRR (mean reciprocal rank) results for both real-valued and binary models of a given dimensionality. MRR ratio denotes the fraction of the real-valued MRR the binary model achieves for that dimensionality; PPMS (predictions per millisecond) ratio denotes how many more predictions the binary model can compute per millisecond.
+Table \ref{tb:results} summarises the results of the Movielens 1M experiment. Each row presents the best MRR (mean reciprocal rank) results for both real-valued and binary models of a given dimensionality. MRR ratio denotes the fraction of the real-valued MRR the binary model achieves for that dimensionality; PPMS (predictions per millisecond) ratio denotes how many more predictions the binary model can compute per millisecond.
 
 Results on scoring speed and memory use broadly confirm the naive calculations from section \ref{sec:approach}, converging to over 20 times faster scoring at around 3\% of memory as latent dimensionality increases. Memory savings plateau as latent dimensionality increases and storing the binary scaling factors becomes less important.
 

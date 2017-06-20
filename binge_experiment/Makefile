@@ -8,5 +8,5 @@ validate:
 bench:
 	bin/binge_bench
 clean:
-	rm movielens_100k_validation.log
+	rm movielens_1M_validation.log
 all: clean optimize validate bench

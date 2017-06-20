@@ -56,7 +56,7 @@ def _benchmark(scorer, num_iterations=100, profile_filename=None):
 @click.option('--profile', is_flag=True, help='Profile the benchmark runs.')
 def benchmark(num_items, profile=False, latent_dims=(32, 64, 128, 256, 512, 1024, 2048)):
 
-    validation_db = Results('movielens_100k_validation.log')
+    validation_db = Results('movielens_1M_validation.log')
     validation_db.clear_benchmarks()
 
     for latent_dim in latent_dims:

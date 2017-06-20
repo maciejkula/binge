@@ -29,7 +29,7 @@ def random_search(train,
                   random_state=None,
                   verbose=False):
 
-    results_db = Results('movielens_100k.log')
+    results_db = Results('movielens_1M.log')
 
     space = {
         'n_iter': distributions.randint(5, 30),
@@ -86,7 +86,7 @@ def check(ctx):
 
     (xnor, gpu, random_seed, verbose) = ctx.obj['options']
 
-    train, test, validation = movielens.fetch_movielens_10M(
+    train, test, validation = movielens.fetch_movielens_1M(
         random_seed=random_seed
     )
 
@@ -126,7 +126,7 @@ def optimize(ctx, num_iterations=10):
 
     (xnor, gpu, random_seed, verbose) = ctx.obj['options']
 
-    train, test, validation = movielens.fetch_movielens_10M(
+    train, test, validation = movielens.fetch_movielens_1M(
         random_seed=random_seed
     )
 
@@ -146,12 +146,12 @@ def optimize(ctx, num_iterations=10):
 @click.pass_context
 def validate(ctx):
 
-    results_db = Results('movielens_100k.log')
-    validation_db = Results('movielens_100k_validation.log')
+    results_db = Results('movielens_1M.log')
+    validation_db = Results('movielens_1M_validation.log')
 
     (xnor, gpu, random_seed, verbose) = ctx.obj['options']
 
-    train, test, validation = movielens.fetch_movielens_10M(
+    train, test, validation = movielens.fetch_movielens_1M(
         random_seed=random_seed
     )
 
@@ -193,8 +193,8 @@ def show():
                           'loss', 'n_iter', 'batch_size', 'l2', 'learning_rate')
     validation_headers = ('embedding_dim', 'xnor', 'mean_mrr', 'duration', 'qpms', 'memory')
 
-    hyperparams_db = Results('movielens_100k.log')
-    validation_db = Results('movielens_100k_validation.log')
+    hyperparams_db = Results('movielens_1M.log')
+    validation_db = Results('movielens_1M_validation.log')
 
     print('Hyperparameters')
     print(hyperparams_db.load()
@@ -313,7 +313,7 @@ def show():
 @cli.command()
 def plot():
 
-    validation_db = Results('movielens_100k_validation.log')
+    validation_db = Results('movielens_1M_validation.log')
     validation_db.plot('movielens.svg')
 
 
