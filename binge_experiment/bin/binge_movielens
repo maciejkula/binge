@@ -15,7 +15,7 @@ from binge.evaluation import mrr_score
 
 from binge_experiment.results import Results
 
-EMBEDDING_DIMENSIONS = (32, 64, 128, 256, 512, 1024, 2048)#, 4096) 
+EMBEDDING_DIMENSIONS = (32, 64, 128, 256, 512, 1024, 2048)
 
 
 def random_search(train,
