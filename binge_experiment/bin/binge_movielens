@@ -36,9 +36,7 @@ def random_search(train,
         'batch_size': [2048, 4096, 8192],
         'l2': [1e-6, 1e-4, 0.0],
         'learning_rate': [1e-3, 1e-2, 5 * 1e-2],
-        # 'l2': distributions.expon(0, 0.005),
-        # 'learning_rate': distributions.expon(0, 0.005),
-        'loss': ['bpr', 'adaptive']  # TODO: re-enable adaptive loss
+        'loss': ['bpr', 'adaptive']
     }
 
     sampler = ParameterSampler(space,
@@ -272,41 +270,38 @@ def show():
                        .iloc[[np.argmax(equally_fast_binary['Binary MRR'].values)]]
                        .to_dict('records')[0])
 
+    largest_dim_row = (pretty
+                       .iloc[[-1]]
+                       .to_dict('records')[0])
+    smallest_dim_row = (pretty
+                        .iloc[[0]]
+                        .to_dict('records')[0])
+
     print('As expected, for the same dimensionality a binary model '
           'achieves lower ranking accuracy. On average, the accuracy loss '
+          'when moving from a contious to a binary model of the same latent dimensionality '
           'is around {:.0f}\%, varying between {:.0f}\% and {:.0f}\%.'.format(
               (1.0 - pretty['MRR ratio'].mean()) * 100,
               (1.0 - pretty['MRR ratio'].max()) * 100,
               (1.0 - pretty['MRR ratio'].min()) * 100))
-    print('Nevertheless, the binary model\'s speed enables some very favourable tradeoffs.')
-    print('')
-    print('When optimizing for MRR in both settings (at {} dimensions for the '
-          'continuous and {} for the binary case), the XNOR representation achieves {:.0f}\% '
-          'of the maximum MRR of the float '
-          'representations at {:.0f} times the query throughput and using only '
-          '{:.0f}\% of the memory.'.format(
-              int(highest_float_mrr_row['Dimension']),
-              int(highest_binary_mrr_row['Dimension']),
-              (highest_binary_mrr_row['Binary MRR'] /
-               highest_float_mrr_row['MRR'] * 100),
-              (highest_binary_mrr_row['Binary PPMS']
-               / highest_float_mrr_row['PPMS']),
-              (highest_binary_mrr_row['Binary memory use']
-               / highest_float_mrr_row['Memory use'] * 100),
-          ))
-    print('')
-    print('When optimizing for query throughput at {} dimensions for '
-          'the continuous case, the XNOR representation (at {} dimensions) '
-          'can improve the ranking performance by achieving {:.0f}\% '
-          'of the continuous MRR while being slightly faster at {:.1f} times '
-          'the query throughput, and using {:.0f}\% of the memory.'.format(
-              int(fastest_float_row['Dimension']),
-              int(fast_binary_row['Dimension']),
-              (fast_binary_row['Binary MRR'] /
-               fastest_float_row['MRR'] * 100),
-              fast_binary_row['Binary PPMS'] / fastest_float_row['PPMS'],
-              (fast_binary_row['Binary memory use']
-               / fastest_float_row['Memory use'] * 100)
+    print('Unfortunately, while continous models retain good accuracy as latent '
+          'dimensionality decreases, binary models\' representational power '
+          'sharply deteriorates. Moving from the 1024 to 32 dimensions in the '
+          'continuous model implies a {:.0f} times increase in prediction speed '
+          'at the expense of a modest {:.0f}\% decrease in accuracy. This '
+          'compares favourably to switching to binary representations: '
+          'moving to a 1024-binary dimensional representation '
+          'implies a sharper accuracy drop at {:.0f}\% in exchange for '
+          'a smaller {:.0f} times increase in prediction speed. '
+          'Moving to 32 dimensions yields a further speed '
+          'gains at {:.0f} times, but at the cost of a considerable loss of '
+          'accuracy at {:.0f}\%.'.format(
+              smallest_dim_row['PPMS'] / largest_dim_row['PPMS'],
+              (1.0 - smallest_dim_row['MRR'] / largest_dim_row['MRR']) * 100,
+              (1.0 - largest_dim_row['Binary MRR'] / largest_dim_row['MRR']) * 100,
+              largest_dim_row['Binary PPMS'] / largest_dim_row['PPMS'],
+              smallest_dim_row['Binary PPMS'] / largest_dim_row['PPMS'],
+              (1.0 - smallest_dim_row['Binary MRR'] / largest_dim_row['MRR']) * 100,
           ))
 
 
