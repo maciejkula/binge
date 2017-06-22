@@ -202,7 +202,7 @@ def show():
           .to_string(columns=validation_headers))
 
 
-    data = validation_db.load()
+    data = validation_db.load(best_only=True)
 
     float_results = data[data['xnor'] == 0]
     binary_results = data[data['xnor'] == 1]
