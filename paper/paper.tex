@@ -46,11 +46,8 @@ Additionaly, while a pre-compute solution removes model prediction from the crit
 
 To alleviate these constraints in both online and offline settings, we evaluate the use of binary item and user representations in learning-to-rank matrix factorization models. Following the approach of \citet{rastegari2016xnor}, we estimate binary user and item representations that are several times faster to score and requiring a fraction of the memory (for the same latent dimensionality). Unfortunately, they are substantially less accurate than standard learning-to-rank approaches. The resulting speed-accuracy trade-offs favour simply reducing the latent dimensionality of traditional models when evaluation speed is desired.
 
-We speculate that binary representations are more useful in case of more complex models (such as deep convolutional models) where a single prediction requires many more floating operations than relatively compact biliearn recommender models.
+We speculate that binary representations are more useful in case of more complex models (such as deep convolutional models) where a single prediction requires many more floating operations than relatively compact bilinear recommender models.
 
-%%_______________________________________
-%% In MovieLens 1M experiments, our binary representations are within 4\% of the accuracy of the real-valued model, but are over 13 times faster to score and take only 6\% of the memory.
-%% ____________________________________
 
 \section{Binary latent representations}
 \label{sec:approach}
@@ -62,7 +59,7 @@ Naturally, using binary instead of real-valued representations entails a loss of
 
 To quantify the tradeoffs involved, we construct and fit both a real-valued and a binary version of simple implicit learning-to-rank factorization model. We introduce the notation and the models below.
 
-Let $\symUserSet$ be the set of users, and $\symItemSet$ be the set of items. Each user interacts with a number of items $\symUserInteractionSet_i^+$; the set of all remaining items is denoted by $\symUserInteractionSet^-$.
+Let $\symUserSet$ be the set of users, and $\symItemSet$ be the set of items. Each user interacts with a number of items $\symUserInteractionSet^+$; the set of all remaining items is denoted by $\symUserInteractionSet^-$.
 
 In a traditional real-valued latent factor model, the prediction $r_{ui}$ for any user-item interaction pair $(u, i) \in \symUserSet \times \symItemSet$ is given by
 \begin{equation}
@@ -93,7 +90,7 @@ The model is trained using backpropagation, and so we use a smooth approximation
 \begin{equation}
   \frac{d\sign}{dw}=
   \begin{cases}
-    w & \text{if}\ \abs{w} \leq 1 \\
+    1 & \text{if}\ \abs{w} \leq 1 \\
     0 & \text{otherwise}.
   \end{cases}
 \end{equation}
@@ -175,7 +172,7 @@ Unfortunately, while continous models retain good accuracy as latent dimensional
 The results suggest that latent recommender models have good representational power even at low latent dimensionalities. This advantage is lost when using binary embeddings, which need to be high-dimensional to achieve comparable accuracy. At the same time, binary representations' speed advantage is only evident at high dimensions: at low dimensions, only floating-point operations can use enjoy the advantages of SIMD operations, and the fixed overhead of binary scaling factors $\alpha$ and $\beta$ constitutes a larger proportion of the total computational cost. We conjecture that the attractiveness of binary representations is tightly coupled with high-dimensional models where a single prediction requires many floating point operations, such as convolutional neural networks. Relatively compact latent factor models do not fall into this category.
 
 \section{Conclusion}
-While prediction latency is a pressing concern for many recommender systems, we find that the already compact latent factor models do not stand to benefit from using binary latent representations. The sharp drop in representational power exhibited by binary embeddings makes other approaches (such as exact \citep{koenigstein2012efficient} and approximate \citet{shrivastava2014asymmetric} maximum inner product search) more promising avenues when optimizing large-scale ranking.
+While prediction latency is a pressing concern for many recommender systems, we find that the already compact latent factor models do not stand to benefit from using binary latent representations. The sharp drop in representational power exhibited by binary embeddings makes other approaches (such as exact \citep{koenigstein2012efficient} and approximate \citep{shrivastava2014asymmetric} maximum inner product search) more promising avenues when optimizing large-scale ranking.
 
 
 \bibliography{bibliography}
