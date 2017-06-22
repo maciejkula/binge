@@ -174,8 +174,6 @@ The results suggest that latent recommender models have good representational po
 \section{Conclusion}
 While prediction latency is a pressing concern for many recommender systems, we find that the already compact latent factor models do not stand to benefit from using binary latent representations. The sharp drop in representational power exhibited by binary embeddings makes other approaches (such as exact \citep{koenigstein2012efficient} and approximate \citep{shrivastava2014asymmetric} maximum inner product search) more promising avenues when optimizing large-scale ranking.
 
-There are a number of ways in which our work could be extended. An increasing number of recommender applications employ more sophisticated models using recurrent units for sequence representations or convolutional units for incorporating image data. Our approach can easily be applied in such models by simply replacing the topmost dot product or softmax layers with their binary equivalents.
-
 
 \bibliography{bibliography}
 \bibliographystyle{ACM-Reference-Format}
