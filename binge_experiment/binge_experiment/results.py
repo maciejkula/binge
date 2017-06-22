@@ -117,7 +117,7 @@ class Results:
                     'LEFT JOIN benchmark ON ('
                     'results.embedding_dim = benchmark.embedding_dim '
                     'AND results.xnor = benchmark.xnor) '
-                    'ORDER BY results.embedding_dim, results.xnor ASC')
+                    'ORDER BY results.embedding_dim, results.xnor ASC, mean_mrr DESC')
 
         data = [dict(x) for x in cur.fetchall()]
 

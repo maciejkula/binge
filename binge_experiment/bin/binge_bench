@@ -11,6 +11,9 @@ from binge import Scorer, XNORScorer
 from binge_experiment.results import Results
 
 
+EMBEDDING_DIMENSIONS = (4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048)
+
+
 def _get_representations(num_users,
                          num_items,
                          latent_dim):
@@ -52,11 +55,11 @@ def _benchmark(scorer, num_iterations=100, profile_filename=None):
 
 
 @click.command()
-@click.option('--num_items', default=100000, help='Number of items to score.')
+@click.option('--num_items', default=500000, help='Number of items to score.')
 @click.option('--profile', is_flag=True, help='Profile the benchmark runs.')
-def benchmark(num_items, profile=False, latent_dims=(32, 64, 128, 256, 512, 1024, 2048, 4096)):
+def benchmark(num_items, profile=False, latent_dims=EMBEDDING_DIMENSIONS):
 
-    validation_db = Results('movielens_100k_validation.log')
+    validation_db = Results('movielens_1M_validation.log')
     validation_db.clear_benchmarks()
 
     for latent_dim in latent_dims:
@@ -82,13 +85,13 @@ def benchmark(num_items, profile=False, latent_dims=(32, 64, 128, 256, 512, 1024
 
         validation_db.save_benchmark(latent_dim,
                                      xnor=False,
-                                     duration=(scorer_timings.mean()
-                                               / num_items).mean(),
+                                     duration=(scorer_timings
+                                               / num_items).min(),
                                      memory=scorer.memory())
         validation_db.save_benchmark(latent_dim,
                                      xnor=True,
                                      duration=(xnor_scorer_timings
-                                               / num_items).mean(),
+                                               / num_items).min(),
                                      memory=xnor_scorer.memory())
 
 

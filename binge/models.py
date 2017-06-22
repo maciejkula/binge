@@ -45,16 +45,6 @@ def binarize_array(array):
     return array
 
 
-def binary_dot(x, y):
-
-    x_scale = x.abs().mean(1).detach()
-    y_scale = y.abs().mean(1).detach()
-
-    xnor = sign(x) * sign(y)
-
-    return xnor.sum(1) * x_scale * y_scale
-
-
 class BinaryDot(Function):
 
     def forward(self, x, y):
@@ -77,43 +67,27 @@ class BinaryDot(Function):
 
         embedding_dim = x.size()[1]
 
-        x_scale = x.abs().mean(1)
-        y_scale = y.abs().mean(1)
+        grad_output = grad_output.expand_as(x)
 
-        sign_x = x.sign() * x_scale.expand_as(x)
-        sign_y = y.sign() * y_scale.expand_as(y)
+        x_scale = x.abs().mean(1).expand_as(x)
+        y_scale = y.abs().mean(1).expand_as(y)
 
-        return (sign_y * grad_output.expand_as(y)
-                * (1.0 / embedding_dim + (x.abs() < 1.0).float().abs()
-                   * x_scale.expand_as(y)),
-                sign_x * grad_output.expand_as(x)
-                * (1.0 / embedding_dim + (y.abs() < 1.0).float().abs()
-                   * y_scale.expand_as(x)))
+        sign_x = x.sign()
+        sign_y = y.sign()
 
+        dx_dsign = (x.abs() <= 1.0).float()
+        dy_dsign = (y.abs() <= 1.0).float()
 
-# def binary_dot(x, y):
+        grads = (grad_output * sign_y * y_scale *
+                 (1.0 / embedding_dim + dx_dsign * x_scale),
+                 grad_output * sign_x * x_scale *
+                 (1.0 / embedding_dim + dy_dsign * y_scale))
 
-#     return BinaryDot()(x, y)
+        return grads
 
+def binary_dot(x, y):
 
-class Sign(Function):
-
-    def forward(self, x):
-
-        self.save_for_backward(x)
-
-        return x.sign()
-
-    def backward(self, grad_output):
-
-        x, = self.saved_tensors
-
-        return grad_output * (x.abs() < 1.0).float().abs()
-
-
-def sign(x):
-
-    return Sign()(x)
+    return BinaryDot()(x, y)
 
 
 class BilinearNet(nn.Module):
@@ -509,3 +483,23 @@ class XNORScorer:
         get_size = lambda x: x.itemsize * x.size
 
         return sum(get_size(x) for x in self._parameters())
+
+
+class PopularityModel:
+
+    def __init__(self):
+
+        self._popularity = None
+
+    def fit(self, interactions):
+
+        self._popularity = interactions.getnnz(axis=0).astype(np.float32)
+
+        assert len(self._popularity) == interactions.shape[1]
+
+    def predict(self, user_ids, item_ids=None):
+
+        if item_ids is not None:
+            return self._popularity[item_ids]
+        else:
+            return self._popularity

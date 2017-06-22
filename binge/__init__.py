@@ -1,1 +1,1 @@
-from binge.models import FactorizationModel, Scorer, XNORScorer
+from binge.models import FactorizationModel, PopularityModel, Scorer, XNORScorer
