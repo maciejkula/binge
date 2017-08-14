@@ -121,7 +121,7 @@ For the purposes of this paper, we focus on a simple bilinear collaborative filt
 \centering
 \begin{tabular}{rrrrrrrr}
 \toprule
-Dimension &   MRR & Binary MRR & MRR ratio\tnote{1} &   PPMS\tnote{2} & Binary PPMS & PPMS ratio & Memory use ratio \\
+Dimension &   MRR & Binary MRR & MRR ratio\tnote{1} &   PPMS\tnote{2} & Binary PPMS & PPMS ratio\tnote{3} & Memory use ratio\tnote{4} \\
 \midrule
        32 & 0.077 &      0.059 &     0.768 & 87,758 &     264,146 &      3.010 &            0.091 \\
        64 & 0.075 &      0.066 &     0.878 & 45,992 &     220,833 &      4.802 &            0.062 \\
@@ -134,7 +134,9 @@ Dimension &   MRR & Binary MRR & MRR ratio\tnote{1} &   PPMS\tnote{2} & Binary P
 \begin{tablenotes}
 \small{
 \item[1] Ratio of binary model MRR to real-valued model MRR
-\item[2] Predictions Per Millisecond
+\item[2] Predictions Per Millisecond: how many items can be scored per millisecond
+\item[3] Ratio of binary PPMS to real-valued PPMS
+\item[4] Ratio of memory required to store binary vs. real-valued parameters
 }
 \end{tablenotes}
 \end{threeparttable}
