@@ -28,6 +28,26 @@
 \setcopyright{none}
 \acmConference[]{}{}{}
 
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10002951.10003260.10003261.10003269</concept_id>
+<concept_desc>Information systems~Collaborative filtering</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+<concept>
+<concept_id>10002951.10003317.10003338.10003346</concept_id>
+<concept_desc>Information systems~Top-k retrieval in databases</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Information systems~Collaborative filtering}
+\ccsdesc[500]{Information systems~Top-k retrieval in databases}
+
+\keywords{Recommender Systems, Matrix Factorization, Binary Representations}
+
 
 \begin{abstract}
 Large-scale recommender systems often face severe latency and storage constraints at prediction time. These are particularly acute when the number of items that could be recommended is large, and calculating predictions for the full set is computationally intensive. In an attempt to relax these constraints, we train recommendation models that use binary rather than real-valued user and item representations, and show that while they are substantially faster to evaluate, the gains in speed come at a large cost in accuracy. In our Movielens 1M experiments, we show that reducing the latent dimensionality of traditional models offers a more attractive accuracy/speed trade-off than using binary representations.
