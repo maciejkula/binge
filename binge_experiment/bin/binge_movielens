@@ -256,6 +256,17 @@ def show():
           .to_latex(index=False,
                     formatters=[fmt] * 8
                     ))
+    print(pretty[['Dimension',
+                  'MRR',
+                  'Binary MRR',
+                  'MRR ratio',
+                  'PPMS',
+                  'Binary PPMS',
+                  'PPMS ratio',
+                  'Memory use ratio']]
+          .to_string(index=False,
+                     formatters=[fmt] * 8
+          ))
 
     highest_float_mrr_row = (pretty.iloc[[np.argmax(pretty['MRR'].values)]]
                              .to_dict('records')[0])
