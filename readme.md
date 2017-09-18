@@ -2,6 +2,8 @@
 
 This repository contains an implementation of recommendation models that use binary rather than floating point operations at prediction time. This makes them much faster (and less memory intensive), but also less accurate.
 
+The details are in the [paper](https://arxiv.org/abs/1706.07479) and in the [slides](https://speakerdeck.com/maciejkula/binary-embeddings-for-efficient-ranking).
+
 ## Implementation
 
 The [model](binge/models.py#L134) is implemented in PyTorch for fitting, and [C](binge/predict.c#L118) for prediction (using AVX2 SIMD operations).
